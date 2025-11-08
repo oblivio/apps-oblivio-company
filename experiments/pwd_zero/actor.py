@@ -993,8 +993,17 @@ class ExperimentActor:
             logger.error(f"Error getting MFA status: {e}", exc_info=True)
             return {"status": "error", "error": str(e)}
     
-    async def change_master_password(self, user_id: str, current_password: str, new_password: str) -> Dict[str, Any]:
-        """Change user's master password with security checks."""
+    async def change_master_password(
+        self, 
+        user_id: str, 
+        current_password: str, 
+        new_password: str,
+        current_encryption_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Change user's master password with security checks.
+        SECURITY: Automatically re-encrypts all passwords with new encryption key.
+        """
         self._check_ready()
         try:
             user = await self.db.users.find_one({"_id": ObjectId(user_id)})
@@ -1036,6 +1045,58 @@ class ExperimentActor:
             new_salt = os.urandom(16)
             new_hashed_password = generate_password_hash(new_password)
             
+            # Generate new encryption key
+            new_encryption_key = self.get_encryption_key_from_password(new_password, new_salt)
+            new_key_bytes = new_encryption_key if isinstance(new_encryption_key, bytes) else new_encryption_key.encode()
+            
+            # Get current encryption key for re-encryption
+            if not current_encryption_key:
+                # Fallback: derive from current password (shouldn't happen in normal flow)
+                current_encryption_key_bytes = self.get_encryption_key_from_password(current_password, user["salt"])
+            else:
+                # Convert string to bytes if needed
+                if isinstance(current_encryption_key, str):
+                    current_encryption_key_bytes = current_encryption_key.encode()
+                else:
+                    current_encryption_key_bytes = current_encryption_key
+            
+            old_key_bytes = current_encryption_key_bytes
+            
+            # Re-encrypt all passwords with new encryption key
+            passwords = await self.db.passwords.find(
+                {"user_id": ObjectId(user_id)}
+            ).to_list(length=None)
+            
+            re_encrypted_count = 0
+            for pwd_entry in passwords:
+                try:
+                    # Decrypt with old key
+                    old_website = self.decrypt_data(pwd_entry["website"], old_key_bytes)
+                    old_username = self.decrypt_data(pwd_entry["username"], old_key_bytes)
+                    old_password = self.decrypt_data(pwd_entry["password"], old_key_bytes)
+                    
+                    # Encrypt with new key
+                    new_website = self.encrypt_data(old_website, new_key_bytes)
+                    new_username = self.encrypt_data(old_username, new_key_bytes)
+                    new_password_enc = self.encrypt_data(old_password, new_key_bytes)
+                    
+                    # Update password entry
+                    await self.db.passwords.update_one(
+                        {"_id": pwd_entry["_id"]},
+                        {
+                            "$set": {
+                                "website": new_website,
+                                "username": new_username,
+                                "password": new_password_enc,
+                                "updated_at": datetime.datetime.utcnow()
+                            }
+                        }
+                    )
+                    re_encrypted_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to re-encrypt password entry {pwd_entry.get('_id')}: {e}")
+                    # Continue with other entries
+            
             # Update password history (keep last PASSWORD_HISTORY_COUNT)
             updated_history = password_history[-PASSWORD_HISTORY_COUNT:] if len(password_history) > PASSWORD_HISTORY_COUNT else password_history
             updated_history.append({
@@ -1060,17 +1121,19 @@ class ExperimentActor:
             await self._log_security_event(
                 user_id=user_id,
                 event_type="password_changed",
-                details={"username": user.get("username"), "password_strength": strength_check["strength"]}
+                details={
+                    "username": user.get("username"), 
+                    "password_strength": strength_check["strength"],
+                    "passwords_re_encrypted": re_encrypted_count
+                }
             )
-            
-            # Generate new encryption key (user will need to re-encrypt all passwords)
-            new_encryption_key = self.get_encryption_key_from_password(new_password, new_salt)
             
             return {
                 "status": "success",
                 "message": "Master password changed successfully",
-                "encryption_key": new_encryption_key.decode(),
-                "warning": "⚠️ IMPORTANT: Your encryption key has changed. You'll need to re-enter your master password to decrypt your stored passwords. Consider exporting and re-importing your passwords if needed."
+                "encryption_key": new_encryption_key.decode() if isinstance(new_encryption_key, bytes) else new_encryption_key,
+                "passwords_re_encrypted": re_encrypted_count,
+                "warning": f"✅ All {re_encrypted_count} password(s) have been automatically re-encrypted with your new master password."
             }
         except Exception as e:
             logger.error(f"Error changing master password: {e}", exc_info=True)

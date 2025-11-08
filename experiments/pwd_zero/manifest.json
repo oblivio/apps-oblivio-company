@@ -67,6 +67,38 @@
           ["created_at", -1]
         ]
       }
+    ],
+    "encryption_sessions": [
+      {
+        "name": "encryption_sessions_user_session_index",
+        "type": "regular",
+        "keys": [
+          ["user_id", 1],
+          ["session_id", 1]
+        ],
+        "options": { "unique": true }
+      },
+      {
+        "name": "encryption_sessions_expires_at_index",
+        "type": "regular",
+        "keys": { "expires_at": 1 }
+      }
+    ],
+    "temp_mfa_sessions": [
+      {
+        "name": "temp_mfa_sessions_user_token_index",
+        "type": "regular",
+        "keys": [
+          ["user_id", 1],
+          ["temp_token", 1]
+        ],
+        "options": { "unique": true }
+      },
+      {
+        "name": "temp_mfa_sessions_expires_at_index",
+        "type": "regular",
+        "keys": { "expires_at": 1 }
+      }
     ]
   }
 }
