@@ -5,13 +5,16 @@ FastAPI routes that delegate to the Ray Actor.
 
 import logging
 import ray
+import datetime
 from fastapi import APIRouter, Request, HTTPException, Depends, Form, Query, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from typing import Optional, Dict, Any
 from bson import ObjectId
+from werkzeug.security import check_password_hash
 
 from .actor import ExperimentActor
 from experiment_auth_restrictions import block_demo_users
+from rate_limit import limiter, LOGIN_POST_LIMIT, LOGIN_GET_LIMIT, REGISTER_POST_LIMIT
 
 logger = logging.getLogger(__name__)
 bp = APIRouter()
@@ -82,12 +85,17 @@ def get_encryption_key_from_session(request: Request) -> Optional[str]:
 
 def set_encryption_key_cookie(response: RedirectResponse, encryption_key: str):
     """Set encryption key in secure cookie."""
+    import os
+    # Use secure cookies in production (when HTTPS is available)
+    # Check for HTTPS environment variable or use secure by default for production
+    use_secure = os.getenv("USE_SECURE_COOKIES", "true").lower() in {"true", "1", "yes"}
+    
     response.set_cookie(
         key="pwd_zero_encryption_key",
         value=encryption_key,
         httponly=True,
         samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
+        secure=use_secure,  # Secure cookies enabled for production security
         max_age=86400  # 24 hours
     )
 
@@ -104,6 +112,7 @@ def clear_encryption_key_cookie(response: RedirectResponse):
 # --- Authentication Routes ---
 
 @bp.get("/login", response_class=HTMLResponse, dependencies=[Depends(block_demo_users)])
+@limiter.limit(LOGIN_GET_LIMIT)
 async def login_get(request: Request, error: Optional[str] = Query(None)):
     """Display login page."""
     try:
@@ -136,15 +145,21 @@ async def login_get(request: Request, error: Optional[str] = Query(None)):
 
 
 @bp.post("/login", dependencies=[Depends(block_demo_users)])
+@limiter.limit(LOGIN_POST_LIMIT)
 async def login_post(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
     actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)
 ):
-    """Handle login."""
+    """Handle login with IP tracking for security."""
     try:
-        result = await actor.login_user.remote(username, password)
+        # Get client IP address for security logging
+        client_ip = request.client.host if request.client else None
+        if request.headers.get("x-forwarded-for"):
+            client_ip = request.headers.get("x-forwarded-for").split(",")[0].strip()
+        
+        result = await actor.login_user.remote(username, password, client_ip)
         
         if result.get("status") == "error":
             error_msg = result.get('error', 'Login failed')
@@ -154,11 +169,25 @@ async def login_post(
             redirect_url = f"/experiments/pwd_zero/login?error={error_msg}"
             return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
         
+        # Check if MFA is required
+        if result.get("status") == "mfa_required":
+            # Store user_id temporarily for MFA verification
+            # We'll use a temporary session or pass it via form
+            if request.headers.get("accept", "").startswith("application/json"):
+                return JSONResponse({
+                    "status": "mfa_required",
+                    "user_id": result.get("user_id"),
+                    "message": "MFA verification required"
+                }, status_code=200)
+            # For HTML, redirect to MFA verification page
+            # Store user_id in session or pass as query param
+            redirect_url = f"/experiments/pwd_zero/mfa/verify?user_id={result.get('user_id')}"
+            return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+        
         # Create sub-auth session
         from sub_auth import create_experiment_session
         from experiment_db import get_experiment_db
         from core_deps import get_experiment_config
-        from fastapi.responses import RedirectResponse
         
         slug_id = getattr(request.state, "slug_id", "pwd_zero")
         db = await get_experiment_db(request)
@@ -199,6 +228,7 @@ async def login_post(
 
 
 @bp.post("/register", dependencies=[Depends(block_demo_users)])
+@limiter.limit(REGISTER_POST_LIMIT)
 async def register_post(
     request: Request,
     username: str = Form(...),
@@ -274,7 +304,6 @@ async def register_post(
 async def logout_post(request: Request):
     """Handle logout."""
     try:
-        from fastapi.responses import RedirectResponse
         from core_deps import get_experiment_config
         
         slug_id = getattr(request.state, "slug_id", "pwd_zero")
@@ -304,8 +333,20 @@ async def logout_post(request: Request):
 
 @bp.get("/", response_class=HTMLResponse)
 async def index(request: Request, actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)):
-    """Display main password manager page."""
+    """Display main password manager page. Requires authentication."""
     try:
+        # Check if user is authenticated - if not, redirect to login
+        try:
+            user = await get_user_from_request(request)
+            encryption_key = get_encryption_key_from_session(request)
+            if not encryption_key:
+                # No encryption key, redirect to login
+                return RedirectResponse(url="/experiments/pwd_zero/login", status_code=status.HTTP_303_SEE_OTHER)
+        except HTTPException:
+            # Not authenticated, redirect to login
+            return RedirectResponse(url="/experiments/pwd_zero/login", status_code=status.HTTP_303_SEE_OTHER)
+        
+        # User is authenticated, render the main page
         html = await actor.render_index.remote()
         return HTMLResponse(html)
     except Exception as e:
@@ -481,4 +522,233 @@ async def generate_password(
     except Exception as e:
         logger.error(f"Actor call failed for generate_password: {e}", exc_info=True)
         raise HTTPException(500, f"Actor failed to generate password: {e}")
+
+
+# --- MFA Routes ---
+
+@bp.get("/api/mfa/status")
+async def get_mfa_status(
+    request: Request,
+    actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)
+):
+    """Get MFA status for the current user."""
+    user = await get_user_from_request(request)
+    
+    try:
+        result = await actor.get_mfa_status.remote(user["user_id"])
+        return JSONResponse(result)
+    except Exception as e:
+        logger.error(f"Actor call failed for get_mfa_status: {e}", exc_info=True)
+        raise HTTPException(500, f"Actor failed to get MFA status: {e}")
+
+
+@bp.post("/api/mfa/setup")
+async def setup_mfa(
+    request: Request,
+    actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)
+):
+    """Generate MFA secret and QR code for setup."""
+    user = await get_user_from_request(request)
+    encryption_key = get_encryption_key_from_session(request)
+    
+    if not encryption_key:
+        raise HTTPException(status_code=401, detail="Encryption key not found. Please log in again.")
+    
+    try:
+        result = await actor.generate_mfa_secret.remote(user["user_id"], encryption_key)
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("error", "Failed to generate MFA secret"))
+        
+        return JSONResponse(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Actor call failed for generate_mfa_secret: {e}", exc_info=True)
+        raise HTTPException(500, f"Actor failed to generate MFA secret: {e}")
+
+
+@bp.post("/api/mfa/enable")
+async def enable_mfa(
+    request: Request,
+    actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)
+):
+    """Enable MFA after verifying the setup code."""
+    user = await get_user_from_request(request)
+    encryption_key = get_encryption_key_from_session(request)
+    
+    if not encryption_key:
+        raise HTTPException(status_code=401, detail="Encryption key not found. Please log in again.")
+    
+    try:
+        data = await request.json()
+        verification_code = data.get("code")
+        
+        if not verification_code:
+            raise HTTPException(status_code=400, detail="Verification code is required")
+        
+        result = await actor.enable_mfa.remote(user["user_id"], encryption_key, verification_code)
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("error", "Failed to enable MFA"))
+        
+        return JSONResponse(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Actor call failed for enable_mfa: {e}", exc_info=True)
+        raise HTTPException(500, f"Actor failed to enable MFA: {e}")
+
+
+@bp.post("/api/mfa/verify")
+async def verify_mfa(
+    request: Request,
+    actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)
+):
+    """Verify MFA code during login."""
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        code = data.get("code")
+        password = data.get("password")  # Need password to get encryption key
+        
+        if not user_id or not code:
+            raise HTTPException(status_code=400, detail="User ID and MFA code are required")
+        
+        # Get user to derive encryption key
+        from experiment_db import get_experiment_db
+        db = await get_experiment_db(request)
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Verify password to get encryption key
+        if not password or not check_password_hash(user["password"], password):
+            raise HTTPException(status_code=401, detail="Invalid password")
+        
+        # Generate encryption key
+        encryption_key = ExperimentActor.get_encryption_key_from_password(password, user["salt"])
+        
+        # Verify MFA code
+        result = await actor.verify_mfa_code.remote(user_id, code, encryption_key.decode())
+        
+        if result.get("status") != "success":
+            raise HTTPException(status_code=401, detail=result.get("error", "Invalid MFA code"))
+        
+        # MFA verified - complete login
+        from sub_auth import create_experiment_session
+        from core_deps import get_experiment_config
+        
+        slug_id = getattr(request.state, "slug_id", "pwd_zero")
+        config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
+        
+        if not config:
+            raise HTTPException(status_code=500, detail="Experiment configuration not found")
+        
+        # Update login info
+        await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "failed_login_attempts": 0,
+                    "locked_until": None,
+                    "last_login": datetime.datetime.utcnow(),
+                    "last_login_ip": request.client.host if request.client else None
+                }
+            }
+        )
+        
+        # Log successful login with MFA
+        try:
+            await actor._log_security_event.remote(
+                user_id,
+                "login_success",
+                {"username": user.get("username"), "ip": request.client.host if request.client else None, "mfa_used": True}
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log MFA login event: {log_error}")
+        
+        # Create session
+        if request.headers.get("accept", "").startswith("application/json"):
+            json_response = JSONResponse({"status": "success", "message": "Login successful"})
+            await create_experiment_session(request, slug_id, user_id, config, json_response)
+            set_encryption_key_cookie(json_response, encryption_key.decode())
+            return json_response
+        
+        response = RedirectResponse(url="/experiments/pwd_zero/", status_code=status.HTTP_303_SEE_OTHER)
+        await create_experiment_session(request, slug_id, user_id, config, response)
+        set_encryption_key_cookie(response, encryption_key.decode())
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during MFA verification: {e}", exc_info=True)
+        raise HTTPException(500, f"Error during MFA verification: {e}")
+
+
+@bp.post("/api/mfa/disable")
+async def disable_mfa(
+    request: Request,
+    actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)
+):
+    """Disable MFA (requires password verification)."""
+    user = await get_user_from_request(request)
+    
+    try:
+        data = await request.json()
+        password = data.get("password")
+        
+        if not password:
+            raise HTTPException(status_code=400, detail="Password is required to disable MFA")
+        
+        result = await actor.disable_mfa.remote(user["user_id"], password)
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("error", "Failed to disable MFA"))
+        
+        return JSONResponse(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Actor call failed for disable_mfa: {e}", exc_info=True)
+        raise HTTPException(500, f"Actor failed to disable MFA: {e}")
+
+
+# --- Settings Routes ---
+
+@bp.post("/api/settings/change-password")
+async def change_password(
+    request: Request,
+    actor: "ray.actor.ActorHandle" = Depends(get_actor_handle)
+):
+    """Change user's master password."""
+    user = await get_user_from_request(request)
+    
+    try:
+        data = await request.json()
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+        
+        if not current_password or not new_password:
+            raise HTTPException(status_code=400, detail="Current password and new password are required")
+        
+        result = await actor.change_master_password.remote(user["user_id"], current_password, new_password)
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("error", "Failed to change password"))
+        
+        # Update encryption key cookie if password change was successful
+        if result.get("encryption_key"):
+            response = JSONResponse(result)
+            set_encryption_key_cookie(response, result["encryption_key"])
+            return response
+        
+        return JSONResponse(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Actor call failed for change_master_password: {e}", exc_info=True)
+        raise HTTPException(500, f"Actor failed to change password: {e}")
 

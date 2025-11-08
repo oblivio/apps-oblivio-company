@@ -9,6 +9,10 @@ import string
 import base64
 import logging
 import pathlib
+import datetime
+import re
+import math
+import io
 from typing import Dict, Any, List, Optional
 import ray
 from bson import ObjectId
@@ -16,8 +20,17 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from werkzeug.security import generate_password_hash, check_password_hash
+import pyotp
+import qrcode
 
 logger = logging.getLogger(__name__)
+
+# Security configuration
+MAX_LOGIN_ATTEMPTS = 5  # Maximum failed login attempts before lockout
+LOCKOUT_DURATION_MINUTES = 30  # Account lockout duration in minutes
+PASSWORD_HISTORY_COUNT = 5  # Number of previous passwords to remember
+MIN_PASSWORD_AGE_DAYS = 0  # Minimum days before password can be changed
+MAX_PASSWORD_AGE_DAYS = 365  # Maximum password age before warning (1 year)
 
 # Actor-local paths
 experiment_dir = pathlib.Path(__file__).parent
@@ -79,6 +92,127 @@ class ExperimentActor:
     # --- Security & Encryption Helpers ---
     
     @staticmethod
+    def calculate_password_entropy(password: str) -> float:
+        """Calculate password entropy (bits). Higher is better."""
+        if not password:
+            return 0.0
+        
+        # Character set analysis
+        has_lower = bool(re.search(r'[a-z]', password))
+        has_upper = bool(re.search(r'[A-Z]', password))
+        has_digit = bool(re.search(r'\d', password))
+        has_special = bool(re.search(r'[^a-zA-Z0-9]', password))
+        
+        # Calculate character set size
+        charset_size = 0
+        if has_lower:
+            charset_size += 26
+        if has_upper:
+            charset_size += 26
+        if has_digit:
+            charset_size += 10
+        if has_special:
+            charset_size += 32  # Common special characters
+        
+        if charset_size == 0:
+            return 0.0
+        
+        # Entropy = log2(charset_size^length)
+        entropy = math.log2(charset_size ** len(password))
+        return entropy
+    
+    @staticmethod
+    def check_password_strength(password: str) -> Dict[str, Any]:
+        """Check password strength and return detailed analysis."""
+        if not password:
+            return {
+                "valid": False,
+                "score": 0,
+                "entropy": 0.0,
+                "issues": ["Password is empty"],
+                "strength": "very_weak"
+            }
+        
+        issues = []
+        score = 0
+        entropy = ExperimentActor.calculate_password_entropy(password)
+        
+        # Length checks
+        if len(password) < 8:
+            issues.append("Password must be at least 8 characters long")
+        elif len(password) >= 12:
+            score += 1
+        elif len(password) >= 16:
+            score += 2
+        
+        # Character variety checks
+        has_lower = bool(re.search(r'[a-z]', password))
+        has_upper = bool(re.search(r'[A-Z]', password))
+        has_digit = bool(re.search(r'\d', password))
+        has_special = bool(re.search(r'[^a-zA-Z0-9]', password))
+        
+        if not has_lower:
+            issues.append("Add lowercase letters")
+        else:
+            score += 1
+        
+        if not has_upper:
+            issues.append("Add uppercase letters")
+        else:
+            score += 1
+        
+        if not has_digit:
+            issues.append("Add numbers")
+        else:
+            score += 1
+        
+        if not has_special:
+            issues.append("Add special characters (!@#$%^&*)")
+        else:
+            score += 1
+        
+        # Entropy checks
+        if entropy < 30:
+            issues.append("Password is too predictable")
+        elif entropy >= 50:
+            score += 1
+        
+        # Common patterns
+        common_patterns = [
+            r'(.)\1{3,}',  # Repeated characters (aaaa)
+            r'(012|123|234|345|456|567|678|789|890)',  # Sequential numbers
+            r'(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)',  # Sequential letters
+            r'(qwerty|asdfgh|zxcvbn)',  # Keyboard patterns
+        ]
+        
+        for pattern in common_patterns:
+            if re.search(pattern, password.lower()):
+                issues.append("Avoid common patterns (sequences, repeated characters)")
+                score = max(0, score - 1)
+                break
+        
+        # Determine strength level
+        if score <= 2 or entropy < 30:
+            strength = "very_weak"
+        elif score <= 3 or entropy < 40:
+            strength = "weak"
+        elif score <= 4 or entropy < 50:
+            strength = "medium"
+        elif score <= 5 or entropy < 60:
+            strength = "strong"
+        else:
+            strength = "very_strong"
+        
+        return {
+            "valid": len(issues) == 0 and entropy >= 30,
+            "score": score,
+            "entropy": round(entropy, 2),
+            "issues": issues,
+            "strength": strength,
+            "length": len(password)
+        }
+    
+    @staticmethod
     def get_encryption_key_from_password(password: str, salt: bytes) -> bytes:
         """Derives a secure 32-byte encryption key from a user's master password and a salt."""
         kdf = PBKDF2HMAC(
@@ -121,7 +255,7 @@ class ExperimentActor:
     # --- API Methods ---
     
     async def register_user(self, username: str, password: str) -> Dict[str, Any]:
-        """Register a new user."""
+        """Register a new user with enhanced security checks."""
         self._check_ready()
         try:
             username_lower = username.lower()
@@ -129,8 +263,18 @@ class ExperimentActor:
             if not username_lower or len(username_lower) < 3:
                 return {"status": "error", "error": "Username must be at least 3 characters long"}
             
+            # Enhanced master password requirements
             if not password or len(password) < 12:
                 return {"status": "error", "error": "Master password must be at least 12 characters long"}
+            
+            # Check password strength
+            strength_check = self.check_password_strength(password)
+            if not strength_check["valid"]:
+                issues = "; ".join(strength_check["issues"])
+                return {
+                    "status": "error",
+                    "error": f"Master password is too weak. {issues}. Minimum entropy: 30 bits (current: {strength_check['entropy']:.1f} bits)"
+                }
             
             # Check if user already exists
             existing_user = await self.db.users.find_one({"username": username_lower})
@@ -141,17 +285,41 @@ class ExperimentActor:
             salt = os.urandom(16)
             hashed_password = generate_password_hash(password)
             
-            # Create user document
-            # Note: sub_auth expects an email field, so we use username as email
+            # Store password history (for future password reuse prevention)
+            password_history = [{
+                "password_hash": hashed_password,
+                "created_at": datetime.datetime.utcnow()
+            }]
+            
+            # Create user document with security fields
             user_doc = {
                 "username": username_lower,
                 "email": username_lower,  # Use username as email for sub_auth compatibility
                 "password": hashed_password,
-                "salt": salt
+                "salt": salt,
+                "password_history": password_history,
+                "failed_login_attempts": 0,
+                "locked_until": None,
+                "last_login": None,
+                "last_login_ip": None,
+                "created_at": datetime.datetime.utcnow(),
+                "password_changed_at": datetime.datetime.utcnow(),
+                # MFA fields
+                "mfa_enabled": False,
+                "mfa_secret": None,  # Encrypted TOTP secret
+                "mfa_backup_codes": [],  # Hashed backup codes
+                "mfa_verified_at": None
             }
             
             result = await self.db.users.insert_one(user_doc)
             user_id = str(result.inserted_id)
+            
+            # Log security event
+            await self._log_security_event(
+                user_id=user_id,
+                event_type="user_registered",
+                details={"username": username_lower, "password_strength": strength_check["strength"]}
+            )
             
             # Generate encryption key for session
             encryption_key = self.get_encryption_key_from_password(password, salt)
@@ -166,8 +334,8 @@ class ExperimentActor:
             logger.error(f"Error registering user: {e}", exc_info=True)
             return {"status": "error", "error": str(e)}
 
-    async def login_user(self, username: str, password: str) -> Dict[str, Any]:
-        """Authenticate a user and return user info with encryption key."""
+    async def login_user(self, username: str, password: str, ip_address: Optional[str] = None) -> Dict[str, Any]:
+        """Authenticate a user with account lockout protection and security logging."""
         self._check_ready()
         try:
             username_lower = username.lower()
@@ -176,8 +344,99 @@ class ExperimentActor:
                 return {"status": "error", "error": "Username and password are required"}
             
             user = await self.db.users.find_one({"username": username_lower})
+            
+            # Check if account is locked
+            if user and user.get("locked_until"):
+                locked_until = user["locked_until"]
+                if isinstance(locked_until, datetime.datetime):
+                    if datetime.datetime.utcnow() < locked_until:
+                        remaining_minutes = int((locked_until - datetime.datetime.utcnow()).total_seconds() / 60)
+                        await self._log_security_event(
+                            user_id=str(user["_id"]),
+                            event_type="login_blocked_locked",
+                            details={"username": username_lower, "ip": ip_address, "remaining_minutes": remaining_minutes}
+                        )
+                        return {
+                            "status": "error",
+                            "error": f"Account is locked due to too many failed login attempts. Try again in {remaining_minutes} minutes."
+                        }
+                    else:
+                        # Lockout expired, reset
+                        await self.db.users.update_one(
+                            {"_id": user["_id"]},
+                            {"$set": {"locked_until": None, "failed_login_attempts": 0}}
+                        )
+            
+            # Verify password
             if not user or not check_password_hash(user["password"], password):
+                # Increment failed login attempts
+                if user:
+                    failed_attempts = user.get("failed_login_attempts", 0) + 1
+                    update_data = {"failed_login_attempts": failed_attempts}
+                    
+                    # Lock account if max attempts reached
+                    if failed_attempts >= MAX_LOGIN_ATTEMPTS:
+                        locked_until = datetime.datetime.utcnow() + datetime.timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+                        update_data["locked_until"] = locked_until
+                        await self.db.users.update_one(
+                            {"_id": user["_id"]},
+                            {"$set": update_data}
+                        )
+                        await self._log_security_event(
+                            user_id=str(user["_id"]),
+                            event_type="account_locked",
+                            details={"username": username_lower, "ip": ip_address, "failed_attempts": failed_attempts}
+                        )
+                        return {
+                            "status": "error",
+                            "error": f"Too many failed login attempts. Account locked for {LOCKOUT_DURATION_MINUTES} minutes."
+                        }
+                    else:
+                        await self.db.users.update_one(
+                            {"_id": user["_id"]},
+                            {"$set": update_data}
+                        )
+                    
+                    await self._log_security_event(
+                        user_id=str(user["_id"]),
+                        event_type="login_failed",
+                        details={"username": username_lower, "ip": ip_address, "failed_attempts": failed_attempts}
+                    )
+                
                 return {"status": "error", "error": "Invalid username or master password"}
+            
+            # Check if MFA is enabled
+            mfa_enabled = user.get("mfa_enabled", False)
+            
+            if mfa_enabled:
+                # Password is correct, but MFA verification is required
+                # Don't reset failed attempts yet - wait for MFA verification
+                return {
+                    "status": "mfa_required",
+                    "message": "MFA verification required",
+                    "user_id": str(user["_id"]),
+                    "mfa_enabled": True
+                }
+            
+            # Successful login (no MFA) - reset failed attempts and update login info
+            await self.db.users.update_one(
+                {"_id": user["_id"]},
+                {
+                    "$set": {
+                        "failed_login_attempts": 0,
+                        "locked_until": None,
+                        "last_login": datetime.datetime.utcnow(),
+                        "last_login_ip": ip_address
+                    }
+                }
+            )
+            
+            # Log successful login
+            await self._log_security_event(
+                user_id=str(user["_id"]),
+                event_type="login_success",
+                details={"username": username_lower, "ip": ip_address, "mfa_used": False}
+            )
             
             # Generate encryption key from password and salt
             encryption_key = self.get_encryption_key_from_password(password, user["salt"])
@@ -191,6 +450,19 @@ class ExperimentActor:
         except Exception as e:
             logger.error(f"Error logging in user: {e}", exc_info=True)
             return {"status": "error", "error": str(e)}
+    
+    async def _log_security_event(self, user_id: str, event_type: str, details: Dict[str, Any]) -> None:
+        """Log security events for audit trail."""
+        try:
+            event = {
+                "user_id": ObjectId(user_id),
+                "event_type": event_type,
+                "details": details,
+                "timestamp": datetime.datetime.utcnow()
+            }
+            await self.db.security_events.insert_one(event)
+        except Exception as e:
+            logger.error(f"Failed to log security event: {e}", exc_info=True)
 
     async def check_session(self, user_id: str) -> Dict[str, Any]:
         """Check if user exists (for session validation)."""
@@ -207,8 +479,8 @@ class ExperimentActor:
             logger.error(f"Error checking session: {e}", exc_info=True)
             return {"authenticated": False, "has_user": False}
 
-    async def get_passwords(self, user_id: str, encryption_key: str) -> List[Dict[str, Any]]:
-        """Get all passwords for a user and decrypt them."""
+    async def get_passwords(self, user_id: str, encryption_key: str) -> Dict[str, Any]:
+        """Get all passwords for a user and decrypt them. Returns passwords with duplicate detection."""
         self._check_ready()
         try:
             passwords = await self.db.passwords.find(
@@ -234,38 +506,136 @@ class ExperimentActor:
                     logger.warning(f"Could not decrypt password for entry {p.get('_id')}. Error: {e}. Skipping.")
                     continue
             
-            return decrypted_passwords
+            # Detect duplicate passwords
+            password_counts = {}
+            for pwd_entry in decrypted_passwords:
+                pwd_value = pwd_entry["password"]
+                if pwd_value not in password_counts:
+                    password_counts[pwd_value] = []
+                password_counts[pwd_value].append(pwd_entry)
+            
+            # Separate duplicates from unique passwords
+            duplicates = []
+            unique_passwords = []
+            
+            for pwd_value, entries in password_counts.items():
+                if len(entries) > 1:
+                    # This password is used in multiple entries
+                    for entry in entries:
+                        entry["is_duplicate"] = True
+                        entry["duplicate_count"] = len(entries)
+                        duplicates.append(entry)
+                else:
+                    entries[0]["is_duplicate"] = False
+                    unique_passwords.append(entries[0])
+            
+            # Calculate password ages and identify old passwords
+            now = datetime.datetime.utcnow()
+            old_passwords = []
+            for pwd in unique_passwords + duplicates:
+                created_at = pwd.get("created_at")
+                if created_at:
+                    if isinstance(created_at, str):
+                        try:
+                            created_at = datetime.datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        except:
+                            created_at = None
+                    if created_at and (now - created_at).days > MAX_PASSWORD_AGE_DAYS:
+                        old_passwords.append(pwd["_id"])
+            
+            return {
+                "passwords": unique_passwords,
+                "insecure": duplicates,  # Renamed from "duplicates" to "insecure" for clarity
+                "duplicates": duplicates,  # Keep for backward compatibility
+                "has_duplicates": len(duplicates) > 0,
+                "has_insecure": len(duplicates) > 0,  # New field for "INSECURE" section
+                "duplicate_count": len(duplicates),
+                "insecure_count": len(duplicates),  # New field for insecure count
+                "old_passwords": old_passwords,  # Passwords older than MAX_PASSWORD_AGE_DAYS
+                "has_old_passwords": len(old_passwords) > 0
+            }
         except Exception as e:
             logger.error(f"Error getting passwords: {e}", exc_info=True)
-            return []
+            return {
+                "passwords": [],
+                "insecure": [],  # Renamed from "duplicates" to "insecure"
+                "duplicates": [],  # Keep for backward compatibility
+                "has_duplicates": False,
+                "has_insecure": False,  # New field
+                "duplicate_count": 0,
+                "insecure_count": 0  # New field
+            }
 
     async def add_password(self, user_id: str, encryption_key: str, website: str, username: str, password: str) -> Dict[str, Any]:
-        """Add a new password entry."""
+        """Add a new password entry with security checks (duplicates, strength)."""
         self._check_ready()
         try:
             if not all([website, username, password]):
                 return {"status": "error", "error": "Missing required data fields"}
             
+            # Check password strength
+            strength_check = self.check_password_strength(password)
+            if strength_check["strength"] in ["very_weak", "weak"]:
+                # Warn but don't block - user might have legacy weak passwords
+                logger.warning(f"User {user_id} added weak password for {website} (strength: {strength_check['strength']}, entropy: {strength_check['entropy']})")
+            
             key = encryption_key.encode()
+            
+            # Check for duplicate passwords before adding
+            existing_passwords = await self.db.passwords.find(
+                {"user_id": ObjectId(user_id)}
+            ).to_list(length=None)
+            
+            # Decrypt existing passwords to check for duplicates
+            duplicate_found = False
+            duplicate_websites = []
+            for existing in existing_passwords:
+                try:
+                    existing_password = self.decrypt_data(existing["password"], key)
+                    if existing_password == password:
+                        duplicate_found = True
+                        # Decrypt website to show which account uses this password
+                        existing_website = self.decrypt_data(existing["website"], key)
+                        duplicate_websites.append(existing_website)
+                except Exception:
+                    # Skip if decryption fails
+                    continue
             
             # Encrypt the data
             encrypted_doc = {
                 "user_id": ObjectId(user_id),
                 "website": self.encrypt_data(website, key),
                 "username": self.encrypt_data(username, key),
-                "password": self.encrypt_data(password, key)
+                "password": self.encrypt_data(password, key),
+                "created_at": datetime.datetime.utcnow(),
+                "updated_at": datetime.datetime.utcnow()
             }
             
             result = await self.db.passwords.insert_one(encrypted_doc)
             
             # Return the decrypted version for immediate UI update
-            return {
+            response = {
                 "status": "success",
                 "_id": str(result.inserted_id),
                 "website": website,
                 "username": username,
                 "password": password
             }
+            
+            # Add warning if duplicate password was detected
+            if duplicate_found:
+                response["is_duplicate"] = True
+                response["duplicate_warning"] = f"⚠️ SECURITY WARNING: This password is already used by {len(duplicate_websites)} other account(s): {', '.join(duplicate_websites[:3])}{'...' if len(duplicate_websites) > 3 else ''}. Using the same password for multiple accounts is a security risk!"
+                logger.warning(f"User {user_id} added duplicate password for {website} (already used by: {', '.join(duplicate_websites)})")
+            
+            # Log security event
+            await self._log_security_event(
+                user_id=user_id,
+                event_type="password_added",
+                details={"website": website, "is_duplicate": duplicate_found, "password_strength": strength_check["strength"]}
+            )
+            
+            return response
         except Exception as e:
             logger.error(f"Error adding password: {e}", exc_info=True)
             return {"status": "error", "error": str(e)}
@@ -287,6 +657,8 @@ class ExperimentActor:
             
             if not update_data:
                 return {"status": "error", "error": "No fields to update provided"}
+            
+            update_data["updated_at"] = datetime.datetime.utcnow()
             
             result = await self.db.passwords.update_one(
                 {"_id": ObjectId(password_id), "user_id": ObjectId(user_id)},
@@ -369,126 +741,369 @@ class ExperimentActor:
             logger.error(f"Error generating password: {e}", exc_info=True)
             return {"status": "error", "error": str(e)}
 
+    # --- MFA Methods ---
+    
+    async def generate_mfa_secret(self, user_id: str, encryption_key: str) -> Dict[str, Any]:
+        """Generate a TOTP secret and QR code for MFA setup."""
+        self._check_ready()
+        try:
+            user = await self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                return {"status": "error", "error": "User not found"}
+            
+            # Generate a new TOTP secret
+            secret = pyotp.random_base32()
+            
+            # Encrypt the secret using the user's encryption key
+            key = encryption_key.encode()
+            encrypted_secret = self.encrypt_data(secret, key)
+            
+            # Generate provisioning URI
+            username = user.get("username", user.get("email", "user"))
+            issuer = "Password Manager"
+            totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+                name=username,
+                issuer_name=issuer
+            )
+            
+            # Generate QR code
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(totp_uri)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            img_buffer = io.BytesIO()
+            img.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+            qr_code_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+            
+            # Generate backup codes
+            backup_codes = [secrets.token_hex(4).upper() for _ in range(10)]
+            hashed_backup_codes = [generate_password_hash(code) for code in backup_codes]
+            
+            # Store encrypted secret and hashed backup codes (but don't enable MFA yet)
+            await self.db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "mfa_secret": encrypted_secret,
+                        "mfa_backup_codes": hashed_backup_codes,
+                        "mfa_verified_at": None
+                    }
+                }
+            )
+            
+            await self._log_security_event(
+                user_id=user_id,
+                event_type="mfa_secret_generated",
+                details={"username": username}
+            )
+            
+            return {
+                "status": "success",
+                "secret": secret,  # Return plain secret for display (user needs to verify before enabling)
+                "qr_code": f"data:image/png;base64,{qr_code_base64}",
+                "backup_codes": backup_codes,  # Return plain codes (user must save these)
+                "manual_entry_key": secret
+            }
+        except Exception as e:
+            logger.error(f"Error generating MFA secret: {e}", exc_info=True)
+            return {"status": "error", "error": str(e)}
+    
+    async def verify_mfa_code(self, user_id: str, code: str, encryption_key: str) -> Dict[str, Any]:
+        """Verify MFA TOTP code or backup code."""
+        self._check_ready()
+        try:
+            user = await self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                return {"status": "error", "error": "User not found"}
+            
+            mfa_enabled = user.get("mfa_enabled", False)
+            encrypted_secret = user.get("mfa_secret")
+            
+            if not encrypted_secret:
+                return {"status": "error", "error": "MFA not set up for this user"}
+            
+            # Decrypt the secret
+            key = encryption_key.encode()
+            secret = self.decrypt_data(encrypted_secret, key)
+            
+            # Try TOTP verification first
+            totp = pyotp.TOTP(secret)
+            if totp.verify(code, valid_window=1):  # Allow 1 time step window for clock skew
+                # Successful TOTP verification
+                await self.db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {
+                        "$set": {
+                            "mfa_verified_at": datetime.datetime.utcnow(),
+                            "failed_login_attempts": 0,
+                            "locked_until": None
+                        }
+                    }
+                )
+                
+                await self._log_security_event(
+                    user_id=user_id,
+                    event_type="mfa_verified_totp",
+                    details={"username": user.get("username")}
+                )
+                
+                return {"status": "success", "verified": True, "method": "totp"}
+            
+            # Try backup code verification
+            backup_codes = user.get("mfa_backup_codes", [])
+            code_upper = code.upper().strip()
+            
+            for i, hashed_code in enumerate(backup_codes):
+                if check_password_hash(hashed_code, code_upper):
+                    # Remove used backup code
+                    backup_codes.pop(i)
+                    await self.db.users.update_one(
+                        {"_id": ObjectId(user_id)},
+                        {
+                            "$set": {
+                                "mfa_backup_codes": backup_codes,
+                                "mfa_verified_at": datetime.datetime.utcnow(),
+                                "failed_login_attempts": 0,
+                                "locked_until": None
+                            }
+                        }
+                    )
+                    
+                    await self._log_security_event(
+                        user_id=user_id,
+                        event_type="mfa_verified_backup",
+                        details={"username": user.get("username"), "remaining_codes": len(backup_codes)}
+                    )
+                    
+                    return {"status": "success", "verified": True, "method": "backup", "remaining_codes": len(backup_codes)}
+            
+            # Code verification failed
+            await self._log_security_event(
+                user_id=user_id,
+                event_type="mfa_verification_failed",
+                details={"username": user.get("username")}
+            )
+            
+            return {"status": "error", "error": "Invalid MFA code"}
+        except Exception as e:
+            logger.error(f"Error verifying MFA code: {e}", exc_info=True)
+            return {"status": "error", "error": str(e)}
+    
+    async def enable_mfa(self, user_id: str, encryption_key: str, verification_code: str) -> Dict[str, Any]:
+        """Enable MFA after verifying the setup code."""
+        self._check_ready()
+        try:
+            user = await self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                return {"status": "error", "error": "User not found"}
+            
+            encrypted_secret = user.get("mfa_secret")
+            if not encrypted_secret:
+                return {"status": "error", "error": "MFA secret not found. Please generate a new secret first."}
+            
+            # Verify the code before enabling
+            verify_result = await self.verify_mfa_code(user_id, verification_code, encryption_key)
+            if verify_result.get("status") != "success":
+                return {"status": "error", "error": "Invalid verification code. Please enter the code from your authenticator app."}
+            
+            # Enable MFA
+            await self.db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "mfa_enabled": True,
+                        "mfa_verified_at": datetime.datetime.utcnow()
+                    }
+                }
+            )
+            
+            await self._log_security_event(
+                user_id=user_id,
+                event_type="mfa_enabled",
+                details={"username": user.get("username")}
+            )
+            
+            return {"status": "success", "message": "MFA enabled successfully"}
+        except Exception as e:
+            logger.error(f"Error enabling MFA: {e}", exc_info=True)
+            return {"status": "error", "error": str(e)}
+    
+    async def disable_mfa(self, user_id: str, password: str) -> Dict[str, Any]:
+        """Disable MFA (requires password verification)."""
+        self._check_ready()
+        try:
+            user = await self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                return {"status": "error", "error": "User not found"}
+            
+            # Verify password before disabling MFA
+            if not check_password_hash(user["password"], password):
+                await self._log_security_event(
+                    user_id=user_id,
+                    event_type="mfa_disable_failed_password",
+                    details={"username": user.get("username")}
+                )
+                return {"status": "error", "error": "Invalid password"}
+            
+            # Disable MFA and clear secrets
+            await self.db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "mfa_enabled": False,
+                        "mfa_secret": None,
+                        "mfa_backup_codes": [],
+                        "mfa_verified_at": None
+                    }
+                }
+            )
+            
+            await self._log_security_event(
+                user_id=user_id,
+                event_type="mfa_disabled",
+                details={"username": user.get("username")}
+            )
+            
+            return {"status": "success", "message": "MFA disabled successfully"}
+        except Exception as e:
+            logger.error(f"Error disabling MFA: {e}", exc_info=True)
+            return {"status": "error", "error": str(e)}
+    
+    async def get_mfa_status(self, user_id: str) -> Dict[str, Any]:
+        """Get MFA status for a user."""
+        self._check_ready()
+        try:
+            user = await self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                return {"status": "error", "error": "User not found"}
+            
+            mfa_enabled = user.get("mfa_enabled", False)
+            has_secret = user.get("mfa_secret") is not None
+            backup_codes_count = len(user.get("mfa_backup_codes", []))
+            
+            return {
+                "status": "success",
+                "mfa_enabled": mfa_enabled,
+                "mfa_setup": has_secret,
+                "backup_codes_remaining": backup_codes_count
+            }
+        except Exception as e:
+            logger.error(f"Error getting MFA status: {e}", exc_info=True)
+            return {"status": "error", "error": str(e)}
+    
+    async def change_master_password(self, user_id: str, current_password: str, new_password: str) -> Dict[str, Any]:
+        """Change user's master password with security checks."""
+        self._check_ready()
+        try:
+            user = await self.db.users.find_one({"_id": ObjectId(user_id)})
+            if not user:
+                return {"status": "error", "error": "User not found"}
+            
+            # Verify current password
+            if not check_password_hash(user["password"], current_password):
+                await self._log_security_event(
+                    user_id=user_id,
+                    event_type="password_change_failed",
+                    details={"username": user.get("username"), "reason": "invalid_current_password"}
+                )
+                return {"status": "error", "error": "Current password is incorrect"}
+            
+            # Check if new password is the same as current
+            if check_password_hash(user["password"], new_password):
+                return {"status": "error", "error": "New password must be different from current password"}
+            
+            # Check password strength
+            strength_check = self.check_password_strength(new_password)
+            if not strength_check["valid"]:
+                issues = "; ".join(strength_check["issues"])
+                return {
+                    "status": "error",
+                    "error": f"New password is too weak. {issues}. Minimum entropy: 30 bits (current: {strength_check['entropy']:.1f} bits)"
+                }
+            
+            # Check password history (prevent reusing last 5 passwords)
+            password_history = user.get("password_history", [])
+            for old_pwd in password_history[-PASSWORD_HISTORY_COUNT:]:
+                if check_password_hash(old_pwd["password_hash"], new_password):
+                    return {
+                        "status": "error",
+                        "error": f"New password cannot be one of your last {PASSWORD_HISTORY_COUNT} passwords. Please choose a different password."
+                    }
+            
+            # Generate new salt and hash
+            new_salt = os.urandom(16)
+            new_hashed_password = generate_password_hash(new_password)
+            
+            # Update password history (keep last PASSWORD_HISTORY_COUNT)
+            updated_history = password_history[-PASSWORD_HISTORY_COUNT:] if len(password_history) > PASSWORD_HISTORY_COUNT else password_history
+            updated_history.append({
+                "password_hash": user["password"],  # Store old password hash
+                "created_at": datetime.datetime.utcnow()
+            })
+            
+            # Update user document
+            await self.db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "password": new_hashed_password,
+                        "salt": new_salt,
+                        "password_history": updated_history,
+                        "password_changed_at": datetime.datetime.utcnow()
+                    }
+                }
+            )
+            
+            # Log security event
+            await self._log_security_event(
+                user_id=user_id,
+                event_type="password_changed",
+                details={"username": user.get("username"), "password_strength": strength_check["strength"]}
+            )
+            
+            # Generate new encryption key (user will need to re-encrypt all passwords)
+            new_encryption_key = self.get_encryption_key_from_password(new_password, new_salt)
+            
+            return {
+                "status": "success",
+                "message": "Master password changed successfully",
+                "encryption_key": new_encryption_key.decode(),
+                "warning": "⚠️ IMPORTANT: Your encryption key has changed. You'll need to re-enter your master password to decrypt your stored passwords. Consider exporting and re-importing your passwords if needed."
+            }
+        except Exception as e:
+            logger.error(f"Error changing master password: {e}", exc_info=True)
+            return {"status": "error", "error": str(e)}
+
     async def initialize(self):
         """
-        Post-initialization hook: ensures demo users exist and seeds demo content.
+        Post-initialization hook: performs security checks and initialization.
         This is called automatically when the actor starts up.
         
-        This hook:
-        1. Ensures demo user exists with username "demouser" and master password
-        2. Seeds demo passwords for the demo user if they don't have any yet
-        
-        IMPORTANT: This seeding happens at actor initialization, regardless of who logs in.
-        This ensures demo content is ready when demo users access the experiment.
+        NOTE: Demo mode is DISABLED for security. This password manager requires
+        proper user registration and authentication. No demo users or demo content
+        will be created.
         """
         import sys
         print(f"[{self.write_scope}-Actor] ⚡ INITIALIZE CALLED - Starting post-initialization setup...", flush=True, file=sys.stderr)
         logger.info(f"[{self.write_scope}-Actor] ⚡ INITIALIZE CALLED - Starting post-initialization setup...")
         
         try:
-            # Ensure demo users exist
-            from sub_auth import ensure_demo_users_for_actor
-            from config import DEMO_EMAIL_DEFAULT, DEMO_ENABLED
+            # Demo mode is disabled for security
+            logger.info(f"[{self.write_scope}-Actor] 🔒 Demo mode is DISABLED - Password manager requires proper authentication")
+            print(f"[{self.write_scope}-Actor] 🔒 Demo mode is DISABLED - Password manager requires proper authentication", flush=True, file=sys.stderr)
             
-            print(f"[{self.write_scope}-Actor] 📧 DEMO_ENABLED={DEMO_ENABLED}", flush=True, file=sys.stderr)
-            logger.info(f"[{self.write_scope}-Actor] 📧 DEMO_ENABLED={DEMO_ENABLED}")
+            # Verify database is ready
+            if not self.db:
+                raise RuntimeError("Database not initialized")
             
-            # Only seed if demo is enabled
-            if not DEMO_ENABLED:
-                print(f"[{self.write_scope}-Actor] ⏭️  Demo seeding skipped: ENABLE_DEMO not configured", flush=True, file=sys.stderr)
-                logger.info(f"[{self.write_scope}-Actor] Demo seeding skipped: ENABLE_DEMO not configured")
-                return
-            
-            # Get the demo master password from config or use default
-            demo_master_password = "DemoMasterPassword123!"
-            demo_username = "demouser"
-            demo_email = "demouser@pwdmanager.com"
-            
-            # Check if demo user already exists
-            db_user = await self.db.users.find_one({"username": demo_username.lower()})
-            
-            if not db_user:
-                # Create demo user with proper password hash and salt (password manager uses werkzeug)
-                print(f"[{self.write_scope}-Actor] Creating demo user 'DEMOUSER'...", flush=True, file=sys.stderr)
-                logger.info(f"[{self.write_scope}-Actor] Creating demo user 'DEMOUSER'...")
-                
-                salt = os.urandom(16)
-                hashed_password = generate_password_hash(demo_master_password)
-                
-                user_doc = {
-                    "username": demo_username.lower(),
-                    "email": demo_email,
-                    "password": hashed_password,
-                    "salt": salt,
-                    "is_demo": True,
-                    "role": "demo"
-                }
-                
-                result = await self.db.users.insert_one(user_doc)
-                demo_user_id = result.inserted_id
-                logger.info(f"[{self.write_scope}-Actor] ✅ Created demo user 'DEMOUSER' with ID: {demo_user_id}")
-            else:
-                # Demo user exists, ensure it has proper password hash and salt
-                demo_user_id = db_user["_id"]
-                needs_update = False
-                update_data = {}
-                
-                # Check if password needs to be hashed
-                if "password" not in db_user or not db_user.get("password") or not db_user["password"].startswith("pbkdf2:"):
-                    # Password is not hashed, hash it with werkzeug
-                    hashed_password = generate_password_hash(demo_master_password)
-                    update_data["password"] = hashed_password
-                    needs_update = True
-                    logger.info(f"[{self.write_scope}-Actor] Hashing demo user password")
-                
-                # Get or create salt for demo user
-                if "salt" not in db_user or not db_user.get("salt"):
-                    # Create salt if it doesn't exist
-                    salt = os.urandom(16)
-                    update_data["salt"] = salt
-                    needs_update = True
-                    logger.info(f"[{self.write_scope}-Actor] Created salt for demo user")
-                else:
-                    salt = db_user["salt"]
-                
-                # Update user if needed
-                if needs_update:
-                    await self.db.users.update_one(
-                        {"_id": demo_user_id},
-                        {"$set": update_data}
-                    )
-                    logger.info(f"[{self.write_scope}-Actor] Updated demo user with password hash and salt")
-            
-            # Derive encryption key from master password and salt
-            encryption_key = self.get_encryption_key_from_password(demo_master_password, salt)
-            
-            # Call demo seed
-            from .demo_seed import check_and_seed_demo
-            
-            print(f"[{self.write_scope}-Actor] 🌱 Calling check_and_seed_demo for 'DEMOUSER'...", flush=True, file=sys.stderr)
-            logger.info(f"[{self.write_scope}-Actor] Calling check_and_seed_demo for 'DEMOUSER'...")
-            
-            success = await check_and_seed_demo(
-                db=self.db,
-                mongo_uri=self.mongo_uri,
-                db_name=self.db_name,
-                demo_email=demo_email,
-                encryption_key=encryption_key
-            )
-            
-            print(f"[{self.write_scope}-Actor] ✅ check_and_seed_demo returned success={success}", flush=True, file=sys.stderr)
-            logger.info(f"[{self.write_scope}-Actor] ✅ check_and_seed_demo returned success={success}")
-            
-            if success:
-                print(f"[{self.write_scope}-Actor] ✅ Demo seeding completed successfully", flush=True, file=sys.stderr)
-                logger.info(f"[{self.write_scope}-Actor] ✅ Demo seeding completed successfully")
-            else:
-                print(f"[{self.write_scope}-Actor] ⚠️  Demo seeding skipped or failed (may already have content)", flush=True, file=sys.stderr)
-                logger.warning(f"[{self.write_scope}-Actor] ⚠️ Demo seeding skipped or failed (may already have content)")
+            logger.info(f"[{self.write_scope}-Actor] ✅ Password manager initialized and ready (demo mode disabled)")
+            print(f"[{self.write_scope}-Actor] ✅ Password manager initialized and ready (demo mode disabled)", flush=True, file=sys.stderr)
                 
         except Exception as e:
             import traceback
-            print(f"[{self.write_scope}-Actor] ❌ ERROR during demo seeding: {e}", flush=True, file=sys.stderr)
+            print(f"[{self.write_scope}-Actor] ❌ ERROR during initialization: {e}", flush=True, file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
-            logger.error(f"[{self.write_scope}-Actor] ❌ ERROR during demo seeding: {e}", exc_info=True)
+            logger.error(f"[{self.write_scope}-Actor] ❌ ERROR during initialization: {e}", exc_info=True)
 

@@ -22,33 +22,112 @@
             background-size: 400% 400%;
             animation: gradient-animation 25s ease infinite;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        /* Enhanced Animations */
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px) scale(0.98); } 
+            to { opacity: 1; transform: translateY(0) scale(1); } 
+        }
+        @keyframes slideInRight { 
+            from { opacity: 0; transform: translateX(20px); } 
+            to { opacity: 1; transform: translateX(0); } 
+        }
+        @keyframes slideInLeft { 
+            from { opacity: 0; transform: translateX(-20px); } 
+            to { opacity: 1; transform: translateX(0); } 
+        }
+        @keyframes slideUp { 
+            from { opacity: 0; transform: translateY(30px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        @keyframes scaleIn { 
+            from { opacity: 0; transform: scale(0.9); } 
+            to { opacity: 1; transform: scale(1); } 
+        }
+        @keyframes pulse { 
+            0%, 100% { opacity: 1; } 
+            50% { opacity: 0.5; } 
+        }
+        @keyframes spin { 
+            from { transform: rotate(0deg); } 
+            to { transform: rotate(360deg); } 
+        }
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
         
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .slide-in-right { animation: slideInRight 0.4s ease-out forwards; }
+        .slide-in-left { animation: slideInLeft 0.4s ease-out forwards; }
+        .slide-up { animation: slideUp 0.5s ease-out forwards; }
+        .scale-in { animation: scaleIn 0.3s ease-out forwards; }
+        
+        /* Glassmorphism */
         .glassmorphism-card {
             background: rgba(17, 24, 39, 0.6);
             backdrop-filter: blur(16px) saturate(180%);
             -webkit-backdrop-filter: blur(16px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.125);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: all 0.3s ease;
         }
+        .glassmorphism-card:hover {
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Enhanced Form Inputs - Mobile First */
         .form-input {
-            @apply w-full rounded-lg px-4 py-2 text-gray-200 transition-all duration-200 placeholder-gray-500 focus:outline-none;
+            @apply w-full rounded-lg px-4 py-3 text-gray-200 transition-all duration-300 placeholder-gray-500 focus:outline-none;
             background: rgba(31, 41, 55, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
+            font-size: 16px; /* Prevents zoom on iOS */
+            min-height: 48px; /* Touch-friendly */
         }
         .form-input:focus {
-            @apply ring-2 ring-indigo-500;
-            background: rgba(31, 41, 55, 0.7);
-            border-color: rgba(99, 102, 241, 0.5);
+            @apply ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-900;
+            background: rgba(31, 41, 55, 0.8);
+            border-color: rgba(99, 102, 241, 0.6);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .form-input:invalid:not(:placeholder-shown) {
+            border-color: rgba(239, 68, 68, 0.5);
+            @apply ring-2 ring-red-500 ring-offset-2 ring-offset-gray-900;
+        }
+        .form-input:valid:not(:placeholder-shown) {
+            border-color: rgba(34, 197, 94, 0.5);
         }
         
+        /* Enhanced Buttons - Mobile First */
         .btn {
-            @apply flex items-center justify-center gap-2 font-semibold px-4 py-2.5 rounded-lg transition-all duration-200 shadow-lg;
+            @apply flex items-center justify-center gap-2 font-semibold px-6 py-3 rounded-lg transition-all duration-300 shadow-lg;
+            min-height: 48px; /* Touch-friendly */
+            min-width: 44px; /* Touch-friendly */
+            position: relative;
+            overflow: hidden;
+        }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
         }
         .btn-primary {
             @apply bg-indigo-600 hover:bg-indigo-500 text-white;
@@ -56,24 +135,193 @@
         .btn-secondary {
             @apply bg-gray-700 hover:bg-gray-600 text-white;
         }
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
         }
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: currentColor;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        
+        /* Skeleton Loader */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(31, 41, 55, 0.5) 25%, rgba(55, 65, 81, 0.5) 50%, rgba(31, 41, 55, 0.5) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        /* Modal Animations */
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content {
+            animation: scaleIn 0.3s ease-out;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        /* Form Transitions */
+        .form-group {
+            transition: all 0.3s ease;
+        }
+        .form-group:focus-within {
+            transform: translateX(4px);
+        }
+        
+        /* List Item Animations */
+        .list-item {
+            transition: all 0.3s ease;
+            animation: slideInRight 0.4s ease-out forwards;
+        }
+        .list-item:hover {
+            transform: translateX(4px);
+            background: rgba(31, 41, 55, 0.4);
+        }
+        
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(75, 85, 99, 0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { 
+            background: rgba(75, 85, 99, 0.5); 
+            border-radius: 4px; 
+            transition: background 0.3s;
+        }
         ::-webkit-scrollbar-thumb:hover { background: rgba(107, 114, 128, 0.7); }
-        .icon-btn { @apply p-2 rounded-md transition-all duration-200; }
-        .icon-btn:hover { @apply bg-gray-700/80 scale-110; }
         
-        input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; width: 100%; }
+        /* Icon Buttons */
+        .icon-btn { 
+            @apply p-2.5 rounded-md transition-all duration-300; 
+            min-width: 44px;
+            min-height: 44px;
+        }
+        .icon-btn:hover { 
+            @apply bg-gray-700/80 scale-110; 
+        }
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Range Input */
+        input[type=range] { 
+            -webkit-appearance: none; 
+            appearance: none; 
+            background: transparent; 
+            cursor: pointer; 
+            width: 100%; 
+        }
         input[type=range]:focus { outline: none; }
-        input[type=range]::-webkit-slider-runnable-track { height: 8px; background: #4b5563; border-radius: 9999px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; height: 24px; width: 24px; background-color: #6366f1; border-radius: 9999px; border: 2px solid #a5b4fc; margin-top: -8px; transition: transform 0.15s ease-in-out; }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
-        input[type=range]::-moz-range-track { height: 8px; background: #4b5563; border-radius: 9999px; }
-        input[type=range]::-moz-range-thumb { height: 24px; width: 24px; background-color: #6366f1; border-radius: 9999px; border: 2px solid #a5b4fc; }
+        input[type=range]::-webkit-slider-runnable-track { 
+            height: 8px; 
+            background: #4b5563; 
+            border-radius: 9999px; 
+            transition: background 0.3s;
+        }
+        input[type=range]:hover::-webkit-slider-runnable-track {
+            background: #6b7280;
+        }
+        input[type=range]::-webkit-slider-thumb { 
+            -webkit-appearance: none; 
+            appearance: none; 
+            height: 24px; 
+            width: 24px; 
+            background-color: #6366f1; 
+            border-radius: 9999px; 
+            border: 2px solid #a5b4fc; 
+            margin-top: -8px; 
+            transition: all 0.2s ease-in-out; 
+        }
+        input[type=range]::-webkit-slider-thumb:hover { 
+            transform: scale(1.15);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+        }
+        input[type=range]::-moz-range-track { 
+            height: 8px; 
+            background: #4b5563; 
+            border-radius: 9999px; 
+        }
+        input[type=range]::-moz-range-thumb { 
+            height: 24px; 
+            width: 24px; 
+            background-color: #6366f1; 
+            border-radius: 9999px; 
+            border: 2px solid #a5b4fc; 
+            transition: all 0.2s ease-in-out;
+        }
+        input[type=range]::-moz-range-thumb:hover {
+            transform: scale(1.15);
+        }
+        
+        /* Toast Notifications */
+        .toast {
+            animation: slideUp 0.4s ease-out;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        /* Mobile Optimizations */
+        @media (max-width: 640px) {
+            .glassmorphism-card {
+                padding: 1rem;
+            }
+            .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            .btn:last-child {
+                margin-bottom: 0;
+            }
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            header > div:last-child {
+                width: 100%;
+                flex-direction: column;
+            }
+            header > div:last-child > button {
+                width: 100%;
+            }
+        }
+        
+        /* Touch Feedback */
+        @media (hover: none) and (pointer: coarse) {
+            .btn:active {
+                transform: scale(0.98);
+            }
+            .icon-btn:active {
+                transform: scale(0.9);
+            }
+        }
+        
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body class="text-gray-200">
@@ -87,102 +335,189 @@
                 <h1 class="text-3xl font-bold text-white tracking-wider" style="text-shadow: 0 0 10px rgba(255,255,255,0.3);">Secure Manager</h1>
             </div>
             
-            <div id="auth-box" class="glassmorphism-card p-8 rounded-2xl fade-in">
-                <form id="login-form" class="hidden">
+            <div id="auth-box" class="glassmorphism-card p-4 sm:p-8 rounded-2xl fade-in">
+                <form id="login-form" class="hidden space-y-4">
                     <h2 class="text-2xl font-semibold mb-1 text-white">Welcome Back</h2>
                     <p class="text-gray-400 mb-6">Enter your credentials to unlock.</p>
-                    <div class="mb-4">
-                        <label for="login-username" class="block text-sm font-medium text-gray-400 mb-1">Username</label>
-                        <input type="text" id="login-username" required class="form-input">
+                    <div class="form-group">
+                        <label for="login-username" class="block text-sm font-medium text-gray-400 mb-2">Username</label>
+                        <input type="text" id="login-username" required class="form-input w-full">
                     </div>
-                    <div class="mb-4">
-                        <label for="login-password" class="block text-sm font-medium text-gray-400 mb-1">Master Password</label>
-                        <input type="password" id="login-password" required class="form-input">
+                    <div class="form-group">
+                        <label for="login-password" class="block text-sm font-medium text-gray-400 mb-2">Master Password</label>
+                        <input type="password" id="login-password" required class="form-input w-full">
                     </div>
                     <button type="submit" class="w-full btn btn-primary mt-2">
                         <i data-lucide="lock" class="h-5 w-5"></i> Unlock
                     </button>
                     <p class="text-center mt-4 text-sm text-gray-400">Don't have an account? <a href="#" id="show-register-link" class="font-medium text-indigo-400 hover:underline">Register</a></p>
                 </form>
-                <form id="register-form" class="hidden">
+                <form id="register-form" class="hidden space-y-4">
                     <h2 class="text-2xl font-semibold mb-1 text-white">Create Account</h2>
                     <p class="text-gray-400 mb-6">Choose a username and a strong master password.</p>
-                     <div class="mb-4">
-                        <label for="register-username" class="block text-sm font-medium text-gray-400 mb-1">Username</label>
-                        <input type="text" id="register-username" required class="form-input">
+                    <div class="form-group">
+                        <label for="register-username" class="block text-sm font-medium text-gray-400 mb-2">Username</label>
+                        <input type="text" id="register-username" required class="form-input w-full">
                     </div>
-                    <div class="mb-4">
-                        <label for="register-password" class="block text-sm font-medium text-gray-400 mb-1">Master Password</label>
-                        <input type="password" id="register-password" required class="form-input">
+                    <div class="form-group">
+                        <label for="register-password" class="block text-sm font-medium text-gray-400 mb-2">Master Password</label>
+                        <input type="password" id="register-password" required class="form-input w-full">
                     </div>
                     <button type="submit" class="w-full btn btn-primary mt-2">
                         <i data-lucide="user-plus" class="h-5 w-5"></i> Create and Secure
                     </button>
                     <p class="text-center mt-4 text-sm text-gray-400">Already have an account? <a href="#" id="show-login-link" class="font-medium text-indigo-400 hover:underline">Login</a></p>
                 </form>
-                <p id="auth-error" class="text-red-400 text-sm mt-4 text-center h-5"></p>
+                <p id="auth-error" class="text-red-400 text-sm mt-4 text-center min-h-[20px]"></p>
             </div>
         </div>
     </div>
     <div id="app-container" class="hidden container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
-        <header class="flex items-center justify-between mb-8 fade-in" style="animation-delay: 100ms;">
+        <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 fade-in" style="animation-delay: 100ms;">
              <div class="flex items-center gap-3">
                 <div class="bg-indigo-600 p-2 rounded-lg shadow-lg">
                     <i data-lucide="shield-check" class="h-6 w-6 text-white"></i>
                 </div>
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-wide" style="text-shadow: 0 0 10px rgba(255,255,255,0.2);">Password Manager</h1>
-                    <div id="demo-badge" class="hidden mt-1">
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-yellow-500/20 text-yellow-300 rounded-md border border-yellow-500/30">
-                            <i data-lucide="sparkles" class="h-3 w-3"></i> Demo Mode
-                        </span>
                     </div>
                 </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <div id="stats-badge" class="hidden px-3 py-1.5 bg-gray-700/60 rounded-lg border border-gray-600/50">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                <div id="stats-badge" class="hidden px-3 py-1.5 bg-gray-700/60 rounded-lg border border-gray-600/50 self-start sm:self-auto">
                     <span class="text-xs font-medium text-gray-300">
                         <i data-lucide="key" class="h-3 w-3 inline mr-1"></i>
                         <span id="password-count">0</span> saved
                     </span>
                 </div>
-                <button id="logout-btn" class="flex items-center gap-2 bg-gray-700/60 hover:bg-red-500/20 hover:text-red-400 text-gray-300 font-semibold px-4 py-2 rounded-lg transition-all duration-200 text-sm border border-gray-600 hover:border-red-500/30">
-                    <i data-lucide="log-out" class="h-4 w-4"></i> Logout
+                <button id="settings-btn" class="btn btn-secondary w-full sm:w-auto">
+                    <i data-lucide="settings" class="h-4 w-4"></i> <span class="hidden sm:inline">Settings</span>
+                </button>
+                <button id="logout-btn" class="btn bg-gray-700/60 hover:bg-red-500/20 hover:text-red-400 text-gray-300 w-full sm:w-auto border border-gray-600 hover:border-red-500/30">
+                    <i data-lucide="log-out" class="h-4 w-4"></i> <span class="hidden sm:inline">Logout</span>
                 </button>
             </div>
         </header>
         <main>
-            <div class="glassmorphism-card p-6 rounded-2xl mb-8 fade-in" style="animation-delay: 200ms;">
+            <div class="glassmorphism-card p-4 sm:p-6 rounded-2xl mb-6 sm:mb-8 fade-in" style="animation-delay: 200ms;">
                 <h2 class="text-xl font-semibold mb-4 text-white">Add New Account</h2>
-                <form id="add-password-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2">
-                        <label for="website" class="block text-sm font-medium text-gray-400 mb-1">Website</label>
+                <form id="add-password-form" class="space-y-4">
+                    <div class="form-group">
+                        <label for="website" class="block text-sm font-medium text-gray-400 mb-2">Website</label>
                         <input type="text" id="website" name="website" placeholder="example.com" required class="form-input">
                     </div>
-                    <div>
-                        <label for="username" class="block text-sm font-medium text-gray-400 mb-1">Username / Email</label>
+                    <div class="form-group">
+                        <label for="username" class="block text-sm font-medium text-gray-400 mb-2">Username / Email</label>
                         <input type="text" id="username" name="username" placeholder="user@example.com" required class="form-input">
                     </div>
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-gray-400 mb-1">Password</label>
+                    <div class="form-group">
+                        <label for="password" class="block text-sm font-medium text-gray-400 mb-2">Password</label>
                         <div class="relative">
-                            <input type="password" id="password" name="password" required class="form-input pr-10">
-                            <button type="button" class="toggle-password-visibility absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-300">
+                            <input type="password" id="password" name="password" required class="form-input pr-12">
+                            <button type="button" class="toggle-password-visibility absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-300 icon-btn" aria-label="Toggle password visibility">
                                 <i data-lucide="eye" class="h-5 w-5"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="md:col-span-2 flex flex-col sm:flex-row gap-4 mt-2">
-                         <button type="button" id="open-generator-modal-btn" class="w-full sm:w-auto flex-shrink-0 btn btn-secondary">
+                    <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                         <button type="button" id="open-generator-modal-btn" class="btn btn-secondary w-full sm:w-auto">
                             <i data-lucide="sparkles" class="h-4 w-4"></i>
                             Generate Password
                         </button>
-                        <button type="submit" class="w-full sm:w-auto flex-grow btn btn-primary">
+                        <button type="submit" id="add-account-btn" class="btn btn-primary w-full sm:flex-1">
                             <i data-lucide="plus-circle" class="h-5 w-5"></i>
                             Add Account
                         </button>
                     </div>
                 </form>
+            </div>
+            <div id="insecure-section" class="fade-in hidden" style="animation-delay: 250ms;">
+                <div class="glassmorphism-card p-6 rounded-2xl mb-8 border-2 border-red-500/50 bg-red-500/10">
+                    <div class="flex items-start gap-4 mb-4">
+                        <div class="bg-red-500/20 p-3 rounded-lg border border-red-500/30">
+                            <i data-lucide="shield-alert" class="h-6 w-6 text-red-400"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h2 class="text-xl font-semibold mb-2 text-red-300 flex items-center gap-2">
+                                <span class="uppercase tracking-wider">INSECURE</span>
+                                <span id="insecure-count-badge" class="px-2 py-1 text-xs font-bold bg-red-500/30 text-red-200 rounded-full"></span>
+                            </h2>
+                            <p class="text-red-200/90 text-sm mb-4">
+                                <strong class="text-red-200">SECURITY RISK:</strong> You have accounts using duplicate passwords. If one account is compromised, 
+                                all accounts with the same password are at risk. <strong class="text-red-200">You must change these passwords to unique, strong passwords immediately.</strong>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="glassmorphism-card rounded-xl overflow-hidden border border-red-500/30">
+                        <ul id="insecure-password-list" class="divide-y divide-red-500/20"></ul>
+                    </div>
+                </div>
+            </div>
+            <!-- Settings Section -->
+            <div id="settings-section" class="glassmorphism-card p-4 sm:p-6 rounded-2xl mb-6 sm:mb-8 fade-in hidden slide-up">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="bg-indigo-600 p-2 rounded-lg">
+                        <i data-lucide="settings" class="h-6 w-6 text-white"></i>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-white">Settings</h2>
+                </div>
+                
+                <!-- Password Change Section -->
+                <div class="mb-8 pb-8 border-b border-gray-700/50">
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i data-lucide="key" class="h-5 w-5"></i>
+                        Change Master Password
+                    </h3>
+                    <p class="text-sm text-gray-400 mb-4">Update your master password. This will change your encryption key, so you'll need to re-enter your master password to decrypt your stored passwords.</p>
+                    <form id="change-password-form" class="space-y-4">
+                        <div class="form-group">
+                            <label for="current-password" class="block text-sm font-medium text-gray-400 mb-2">Current Master Password</label>
+                            <input type="password" id="current-password" required class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password" class="block text-sm font-medium text-gray-400 mb-2">New Master Password</label>
+                            <input type="password" id="new-password" required class="form-input" minlength="12">
+                            <p class="text-xs text-gray-500 mt-2">Minimum 12 characters, must include uppercase, lowercase, numbers, and special characters</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-new-password" class="block text-sm font-medium text-gray-400 mb-2">Confirm New Master Password</label>
+                            <input type="password" id="confirm-new-password" required class="form-input" minlength="12">
+                        </div>
+                        <button type="submit" id="change-password-btn" class="btn btn-primary w-full sm:w-auto">
+                            <i data-lucide="key" class="h-4 w-4"></i> Change Master Password
+                        </button>
+                        <p id="password-change-error" class="text-red-400 text-sm mt-2 min-h-[20px]"></p>
+                    </form>
+                </div>
+                
+                <!-- MFA Section -->
+                <div>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                                <i data-lucide="shield-check" class="h-5 w-5"></i>
+                                Two-Factor Authentication
+                            </h3>
+                            <p class="text-sm text-gray-400 mt-1">Add an extra layer of security to your account</p>
+                        </div>
+                        <div id="mfa-status-badge" class="px-3 py-1.5 rounded-lg text-sm font-medium self-start sm:self-auto"></div>
+                    </div>
+                    <div id="mfa-enabled-view" class="hidden">
+                        <p class="text-gray-300 mb-4">MFA is enabled for your account. You'll need to enter a code from your authenticator app when logging in.</p>
+                        <div class="flex items-center gap-2 text-sm text-gray-400 mb-4">
+                            <i data-lucide="key" class="h-4 w-4"></i>
+                            <span>Backup codes remaining: <span id="backup-codes-count">0</span></span>
+                        </div>
+                        <button id="disable-mfa-btn" class="btn bg-red-600 hover:bg-red-500 text-white w-full sm:w-auto">
+                            <i data-lucide="shield-off" class="h-4 w-4"></i> Disable MFA
+                        </button>
+                    </div>
+                    <div id="mfa-disabled-view">
+                        <p class="text-gray-300 mb-4">MFA is not enabled. Enable it to add an extra layer of security to your account.</p>
+                        <button id="enable-mfa-setup-btn" class="btn btn-primary w-full sm:w-auto">
+                            <i data-lucide="shield-check" class="h-4 w-4"></i> Enable MFA
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="fade-in" style="animation-delay: 300ms;">
                 <h2 class="text-xl font-semibold mb-4 text-white">Stored Accounts</h2>
@@ -198,8 +533,8 @@
             </div>
         </main>
     </div>
-    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
-        <div class="glassmorphism-card rounded-2xl w-full max-w-lg fade-in p-6">
+    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-70 modal-backdrop flex items-center justify-center p-4 hidden z-50">
+        <div class="glassmorphism-card rounded-2xl w-full max-w-lg modal-content p-4 sm:p-6">
             <h2 class="text-xl font-semibold mb-4 text-white">Edit Account</h2>
             <form id="edit-password-form">
                 <input type="hidden" id="edit-id">
@@ -228,8 +563,68 @@
         </div>
     </div>
     
-    <div id="generator-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50">
-        <div class="glassmorphism-card rounded-2xl w-full max-w-lg fade-in p-6">
+    <!-- MFA Verification Modal -->
+    <div id="mfa-verify-modal" class="fixed inset-0 bg-black bg-opacity-70 modal-backdrop flex items-center justify-center p-4 hidden z-50">
+        <div class="glassmorphism-card rounded-2xl w-full max-w-md modal-content p-4 sm:p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="bg-indigo-600 p-2 rounded-lg">
+                    <i data-lucide="shield-check" class="h-6 w-6 text-white"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-white">MFA Verification Required</h2>
+            </div>
+            <p class="text-gray-400 mb-6 text-sm">Enter the 6-digit code from your authenticator app or use a backup code.</p>
+            <form id="mfa-verify-form">
+                <input type="hidden" id="mfa-user-id">
+                <input type="hidden" id="mfa-password">
+                <div class="mb-4">
+                    <label for="mfa-code" class="block text-sm font-medium text-gray-400 mb-1">MFA Code</label>
+                    <input type="text" id="mfa-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required class="form-input text-center text-2xl font-mono tracking-widest">
+                    <p class="text-xs text-gray-500 mt-2">Or enter a backup code (8 characters)</p>
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" id="cancel-mfa" class="btn bg-gray-700/60 hover:bg-gray-600/80 flex-1">Cancel</button>
+                    <button type="submit" class="btn btn-primary flex-1">
+                        <i data-lucide="shield-check" class="h-4 w-4"></i> Verify
+                    </button>
+                </div>
+                <p id="mfa-error" class="text-red-400 text-sm mt-4 text-center h-5"></p>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MFA Setup Modal -->
+    <div id="mfa-setup-modal" class="fixed inset-0 bg-black bg-opacity-70 modal-backdrop flex items-center justify-center p-4 hidden z-50">
+        <div class="glassmorphism-card rounded-2xl w-full max-w-lg modal-content p-4 sm:p-6">
+            <h2 class="text-xl font-semibold mb-4 text-white">Enable Two-Factor Authentication</h2>
+            <div id="mfa-setup-step1">
+                <p class="text-gray-400 mb-6 text-sm">Scan the QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+                <div class="flex flex-col items-center mb-6">
+                    <div id="mfa-qr-code" class="bg-white p-4 rounded-lg mb-4"></div>
+                    <p class="text-xs text-gray-400 mb-2">Or enter this key manually:</p>
+                    <code id="mfa-manual-key" class="bg-gray-800 px-3 py-2 rounded text-sm font-mono text-gray-300 break-all"></code>
+                </div>
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-white mb-2">Backup Codes (Save these!)</h3>
+                    <div id="mfa-backup-codes" class="bg-gray-800/50 p-4 rounded grid grid-cols-2 gap-2 text-xs font-mono"></div>
+                    <p class="text-xs text-red-400 mt-2">⚠️ Save these codes in a safe place. You'll need them if you lose access to your authenticator app.</p>
+                </div>
+                <div class="mb-4">
+                    <label for="mfa-verify-code" class="block text-sm font-medium text-gray-400 mb-1">Enter verification code</label>
+                    <input type="text" id="mfa-verify-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required class="form-input text-center text-xl font-mono tracking-widest">
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" id="cancel-mfa-setup" class="btn bg-gray-700/60 hover:bg-gray-600/80 flex-1">Cancel</button>
+                    <button type="button" id="enable-mfa-btn" class="btn btn-primary flex-1">
+                        <i data-lucide="shield-check" class="h-4 w-4"></i> Enable MFA
+                    </button>
+                </div>
+                <p id="mfa-setup-error" class="text-red-400 text-sm mt-4 text-center h-5"></p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="generator-modal" class="fixed inset-0 bg-black bg-opacity-70 modal-backdrop flex items-center justify-center p-4 hidden z-50">
+        <div class="glassmorphism-card rounded-2xl w-full max-w-lg modal-content p-4 sm:p-6">
             <h2 class="text-xl font-semibold mb-4 text-white">Password Generator</h2>
             <form id="generator-form">
                 <div class="mb-6">
@@ -346,6 +741,8 @@
         const regeneratePasswordBtn = document.getElementById('regenerate-password-btn');
         const generatorCheckboxes = generatorModal.querySelectorAll('input[type="checkbox"]');
         let allPasswords = [];
+        let duplicatePasswords = [];  // Keep for backward compatibility
+        let insecurePasswords = [];  // New array for INSECURE section
         let toastTimeout;
         const BASE_PATH = '/experiments/pwd_zero';
         
@@ -361,7 +758,7 @@
             };
             toastIcon.innerHTML = icons[type] || icons['info'];
             
-            toast.className = `fixed bottom-5 right-5 text-white py-2 px-5 rounded-lg shadow-xl opacity-0 translate-y-10 transition-all duration-300 flex items-center gap-2 z-50 ${
+            toast.className = `fixed bottom-5 right-5 text-white py-2 px-5 rounded-lg shadow-xl opacity-0 translate-y-10 transition-all duration-300 flex items-center gap-2 z-50 toast ${
                 type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
             }`;
             lucide.createIcons();
@@ -371,6 +768,23 @@
             toastTimeout = setTimeout(() => {
                 toast.classList.add('opacity-0', 'translate-y-10');
             }, 3000);
+        };
+        
+        // Loading state helper
+        const setButtonLoading = (button, isLoading) => {
+            if (!button) return;
+            if (isLoading) {
+                button.disabled = true;
+                const originalHTML = button.innerHTML;
+                button.dataset.originalHTML = originalHTML;
+                button.innerHTML = '<span class="spinner"></span> Loading...';
+            } else {
+                button.disabled = false;
+                if (button.dataset.originalHTML) {
+                    button.innerHTML = button.dataset.originalHTML;
+                    delete button.dataset.originalHTML;
+                }
+            }
         };
         
         const togglePasswordVisibility = (inputElement, buttonElement) => {
@@ -392,16 +806,103 @@
             registerForm.classList.toggle('hidden', hasUser);
             authError.textContent = '';
         };
+        const renderInsecurePasswords = (insecureToRender) => {
+            const insecureList = document.getElementById('insecure-password-list');
+            const insecureSection = document.getElementById('insecure-section');
+            const insecureCountBadge = document.getElementById('insecure-count-badge');
+            
+            if (!insecureToRender || insecureToRender.length === 0) {
+                insecureSection.classList.add('hidden');
+                return;
+            }
+            
+            insecureSection.classList.remove('hidden');
+            insecureCountBadge.textContent = `${insecureToRender.length} account${insecureToRender.length !== 1 ? 's' : ''}`;
+            insecureList.innerHTML = '';
+            
+            // Also update duplicate list for backward compatibility
+            const duplicateList = document.getElementById('duplicate-password-list');
+            if (duplicateList) {
+            duplicateList.innerHTML = '';
+            }
+            
+            // Group insecure passwords by password value
+            const passwordGroups = {};
+            insecureToRender.forEach(p => {
+                if (!passwordGroups[p.password]) {
+                    passwordGroups[p.password] = [];
+                }
+                passwordGroups[p.password].push(p);
+            });
+            
+            // Render each group
+            Object.values(passwordGroups).forEach((group, groupIndex) => {
+                group.forEach((p, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'p-4 sm:p-6 grid grid-cols-6 gap-4 items-center transition-all duration-300 hover:bg-red-500/10 border-l-4 border-red-500/50 list-item';
+                    li.style.animationDelay = `${(groupIndex * 50) + (index * 30)}ms`;
+                    li.dataset.id = p._id;
+                    li.dataset.website = p.website;
+                    li.dataset.username = p.username;
+                    li.dataset.password = p.password;
+                    
+                    // Get domain for favicon
+                    const domain = p.website.replace(/^https?:\/\//, '').split('/')[0];
+                    
+                    li.innerHTML = `
+                        <div class="col-span-6 sm:col-span-4 flex items-center gap-4 min-w-0">
+                            <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl border border-red-500/30 relative overflow-hidden group">
+                                <img src="https://logo.clearbit.com/${domain}?size=40" alt="${p.website}" class="rounded-lg transition-transform duration-300 group-hover:scale-110" 
+                                    onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
+                                <span class="absolute inset-0 flex items-center justify-center hidden font-bold text-lg text-red-300">${p.website.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <p class="font-semibold text-red-200 truncate text-base">${p.website}</p>
+                                    <span class="px-2 py-0.5 text-xs font-bold bg-red-500/30 text-red-200 rounded-full border border-red-500/50">
+                                        ${group.length}x duplicate
+                                    </span>
+                                </div>
+                                <p class="text-sm text-red-300/80 truncate mt-0.5">${p.username}</p>
+                            </div>
+                        </div>
+                        <div class="col-span-6 sm:col-span-2 flex items-center justify-end gap-2">
+                            <button class="icon-btn copy-btn group text-red-300 hover:text-red-200" title="Copy password">
+                                <i data-lucide="copy" class="h-5 w-5 transition-transform duration-200 group-hover:scale-110"></i>
+                            </button>
+                            <button class="icon-btn edit-btn group text-red-300 hover:text-red-200" title="Edit entry - Change this password!">
+                                <i data-lucide="pencil" class="h-5 w-5 transition-transform duration-200 group-hover:scale-110"></i>
+                            </button>
+                            <button class="icon-btn delete-btn text-red-400 hover:bg-red-500/20 hover:border-red-500/30 group" title="Delete entry">
+                                <i data-lucide="trash-2" class="h-5 w-5 transition-transform duration-200 group-hover:scale-110"></i>
+                            </button>
+                        </div>`;
+                    insecureList.appendChild(li);
+                    
+                    // Also add to duplicate list for backward compatibility
+                    if (duplicateList) {
+                        duplicateList.appendChild(li.cloneNode(true));
+                    }
+                });
+            });
+            
+            lucide.createIcons();
+        };
+        
+        // Keep renderDuplicatePasswords for backward compatibility
+        const renderDuplicatePasswords = renderInsecurePasswords;
+        
         const renderPasswords = (passwordsToRender) => {
             passwordList.innerHTML = '';
             
-            // Update password count badge
+            // Update password count badge (only count unique passwords)
             const passwordCount = document.getElementById('password-count');
             if (passwordCount) {
-                passwordCount.textContent = allPasswords.length;
+                const totalCount = allPasswords.length + insecurePasswords.length;
+                passwordCount.textContent = totalCount;
                 const statsBadge = document.getElementById('stats-badge');
                 if (statsBadge) {
-                    statsBadge.classList.toggle('hidden', allPasswords.length === 0);
+                    statsBadge.classList.toggle('hidden', totalCount === 0);
                 }
             }
             
@@ -434,9 +935,8 @@
             } else {
                 passwordsToRender.forEach((p, index) => {
                     const li = document.createElement('li');
-                    li.className = 'p-4 sm:p-6 grid grid-cols-6 gap-4 items-center transition-all duration-300 hover:bg-gray-700/50 hover:scale-[1.01] border-l-4 border-transparent hover:border-indigo-500/50';
+                    li.className = 'p-4 sm:p-6 grid grid-cols-6 gap-4 items-center transition-all duration-300 hover:bg-gray-700/50 hover:scale-[1.01] border-l-4 border-transparent hover:border-indigo-500/50 list-item';
                     li.style.animationDelay = `${index * 50}ms`;
-                    li.classList.add('fade-in');
                     li.dataset.id = p._id;
                     li.dataset.website = p.website;
                     li.dataset.username = p.username;
@@ -490,7 +990,26 @@
             try {
                 const response = await fetch(`${BASE_PATH}/api/passwords`);
                 if (await handleApiError(response)) return;
-                allPasswords = await response.json();
+                const data = await response.json();
+                
+                // Handle both old format (array) and new format (object with passwords/insecure)
+                if (Array.isArray(data)) {
+                    // Legacy format - no duplicates detected
+                    allPasswords = data;
+                    duplicatePasswords = [];
+                    insecurePasswords = [];
+                } else {
+                    // New format with duplicate/insecure detection
+                    allPasswords = data.passwords || [];
+                    // Support both "insecure" and "duplicates" for backward compatibility
+                    insecurePasswords = data.insecure || data.duplicates || [];
+                    duplicatePasswords = insecurePasswords;  // Keep for backward compatibility
+                }
+                
+                // Render insecure passwords first (with warnings)
+                renderInsecurePasswords(insecurePasswords);
+                
+                // Then render unique passwords
                 renderPasswords(allPasswords);
             } catch (error) {
                 console.error('Fetch error:', error);
@@ -503,15 +1022,6 @@
                 const data = await response.json();
                 if (data.authenticated) {
                     showApp();
-                    // Check if user is demo user
-                    try {
-                        const userResponse = await fetch(`${BASE_PATH}/api/session`);
-                        const userData = await userResponse.json();
-                        // Check username from session or API
-                        checkDemoMode();
-                    } catch (e) {
-                        // Ignore errors
-                    }
                 } else {
                     showAuth(data.has_user);
                 }
@@ -521,16 +1031,6 @@
             }
         };
         
-        const checkDemoMode = () => {
-            // Check if current user is demo user by checking username
-            // This is a simple check - in production you'd get this from the API
-            const demoBadge = document.getElementById('demo-badge');
-            if (demoBadge) {
-                // Check localStorage or session to see if user is demo
-                const isDemo = localStorage.getItem('pwd_zero_demo_mode') === 'true';
-                demoBadge.classList.toggle('hidden', !isDemo);
-            }
-        };
         // --- Password Generator Logic ---
         const handlePasswordGeneration = async () => {
             const options = {
@@ -588,16 +1088,17 @@
                     method: 'POST',
                     body: formData,
                 });
-                if (res.ok) {
-                    // Check if user is demo user
-                    if (username.toLowerCase() === 'demouser') {
-                        localStorage.setItem('pwd_zero_demo_mode', 'true');
-                    } else {
-                        localStorage.removeItem('pwd_zero_demo_mode');
-                    }
+                const data = await res.json();
+                
+                if (data.status === 'mfa_required') {
+                    // MFA is required - show verification modal
+                    document.getElementById('mfa-user-id').value = data.user_id;
+                    document.getElementById('mfa-password').value = password;
+                    document.getElementById('mfa-verify-modal').classList.remove('hidden');
+                    loginForm.reset();
+                } else if (res.ok) {
                     window.location.href = `${BASE_PATH}/`;
                 } else {
-                    const data = await res.json();
                     authError.textContent = data.error || data.detail || 'Login failed';
                 }
             } catch (err) {
@@ -633,6 +1134,9 @@
         });
         addForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitBtn = document.getElementById('add-account-btn');
+            setButtonLoading(submitBtn, true);
+            
             const data = Object.fromEntries(new FormData(addForm).entries());
             try {
                 const response = await fetch(`${BASE_PATH}/api/passwords`, {
@@ -640,18 +1144,36 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data),
                 });
-                if (await handleApiError(response)) return;
+                if (await handleApiError(response)) {
+                    setButtonLoading(submitBtn, false);
+                    return;
+                }
                 const newPassword = await response.json();
-                allPasswords.push(newPassword);
-                allPasswords.sort((a,b) => a.website.localeCompare(b.website));
-                renderPasswords(allPasswords);
+                
+                // Check if this password already exists (would create a duplicate)
+                const isDuplicate = allPasswords.some(p => p.password === data.password) || 
+                                   insecurePasswords.some(p => p.password === data.password);
+                
+                // Refresh all passwords to update duplicate/insecure detection
+                await fetchPasswords();
+                
                 addForm.reset();
-                showToast('Account added successfully!');
+                
+                // Check if the response includes a duplicate warning
+                if (newPassword.is_duplicate || isDuplicate) {
+                    const warningMsg = newPassword.duplicate_warning || '⚠️ SECURITY WARNING: This password is already used by another account! Using duplicate passwords is a security risk!';
+                    showToast(warningMsg, 'error');
+                } else {
+                    showToast('Account added successfully!');
+                }
             } catch (error) {
                 showToast(error.message, 'error');
+            } finally {
+                setButtonLoading(submitBtn, false);
             }
         });
-        passwordList.addEventListener('click', async (e) => {
+        // Handle clicks on both password lists
+        const handlePasswordListClick = async (e, isInsecureList = false) => {
             const button = e.target.closest('button');
             if (!button) return;
             const li = button.closest('li');
@@ -662,8 +1184,19 @@
                     try {
                         const res = await fetch(`${BASE_PATH}/api/passwords/${id}`, { method: 'DELETE' });
                         if (await handleApiError(res)) return;
-                        allPasswords = allPasswords.filter(p => p._id !== id);
-                        renderPasswords(allPasswords);
+                        
+                        // Remove from appropriate list
+                        if (isInsecureList) {
+                            insecurePasswords = insecurePasswords.filter(p => p._id !== id);
+                            duplicatePasswords = insecurePasswords;  // Keep in sync
+                            renderInsecurePasswords(insecurePasswords);
+                        } else {
+                            allPasswords = allPasswords.filter(p => p._id !== id);
+                            renderPasswords(allPasswords);
+                        }
+                        
+                        // Refresh all passwords to update duplicate/insecure detection
+                        fetchPasswords();
                         showToast('Account deleted.', 'info');
                     } catch(err) {
                         showToast(err.message, 'error');
@@ -675,6 +1208,11 @@
                 document.getElementById('edit-username').value = li.dataset.username;
                 document.getElementById('edit-password').value = li.dataset.password;
                 editModal.classList.remove('hidden');
+                
+                // Show warning if editing an insecure password
+                if (isInsecureList) {
+                    showToast('🔒 SECURITY WARNING: This is a duplicate password. You must change it to a unique, strong password!', 'error');
+                }
             } else if (button.classList.contains('copy-btn')) {
                 navigator.clipboard.writeText(li.dataset.password)
                     .then(() => {
@@ -685,7 +1223,21 @@
                     })
                     .catch(() => showToast('Failed to copy', 'error'));
             }
-        });
+        };
+        
+        passwordList.addEventListener('click', (e) => handlePasswordListClick(e, false));
+        
+        // Add event listener for insecure password list
+        const insecurePasswordList = document.getElementById('insecure-password-list');
+        if (insecurePasswordList) {
+            insecurePasswordList.addEventListener('click', (e) => handlePasswordListClick(e, true));
+        }
+        
+        // Also support duplicate list for backward compatibility
+        const duplicatePasswordList = document.getElementById('duplicate-password-list');
+        if (duplicatePasswordList) {
+            duplicatePasswordList.addEventListener('click', (e) => handlePasswordListClick(e, true));
+        }
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('edit-id').value;
@@ -702,11 +1254,28 @@
                 });
                 if (await handleApiError(response)) return;
                 const updatedPassword = await response.json();
+                
+                // Check if this was an insecure password that was changed
+                const wasInsecure = insecurePasswords.some(p => p._id === id);
+                
+                // Update the appropriate list
                 const index = allPasswords.findIndex(p => p._id === id);
                 if (index !== -1) allPasswords[index] = updatedPassword;
-                renderPasswords(allPasswords);
+                
+                // Remove from insecure list if it was there
+                insecurePasswords = insecurePasswords.filter(p => p._id !== id);
+                duplicatePasswords = insecurePasswords;  // Keep in sync
+                
+                // Refresh all passwords to update duplicate/insecure detection
+                await fetchPasswords();
+                
                 editModal.classList.add('hidden');
-                showToast('Account updated successfully!');
+                
+                if (wasInsecure) {
+                    showToast('✅ Password changed! This account is no longer using a duplicate password and is now secure.', 'success');
+                } else {
+                    showToast('Account updated successfully!');
+                }
             } catch(error) {
                 showToast(error.message, 'error');
             }
@@ -759,37 +1328,323 @@
                 p.website.toLowerCase().includes(searchTerm) || 
                 p.username.toLowerCase().includes(searchTerm)
             );
+            const filteredInsecure = insecurePasswords.filter(p => 
+                p.website.toLowerCase().includes(searchTerm) || 
+                p.username.toLowerCase().includes(searchTerm)
+            );
             renderPasswords(filtered);
+            renderInsecurePasswords(filteredInsecure);
         });
-        // --- Initial Load ---
-        checkSession();
-        checkDemoMode();
-        lucide.createIcons();
         
-        // Add demo mode hint on login page
-        const loginUsername = document.getElementById('login-username');
-        if (loginUsername) {
-            loginUsername.addEventListener('focus', () => {
-                if (!loginUsername.value) {
-                    const hint = document.createElement('p');
-                    hint.id = 'demo-hint';
-                    hint.className = 'text-xs text-indigo-400 mt-1 flex items-center gap-1';
-                    hint.innerHTML = '<i data-lucide="info" class="h-3 w-3"></i> Try <strong>DEMOUSER</strong> for demo mode';
-                    if (!loginUsername.parentElement.querySelector('#demo-hint')) {
-                        loginUsername.parentElement.appendChild(hint);
-                        lucide.createIcons();
-                    }
+        // --- Settings Functions ---
+        let settingsVisible = false;
+        
+        const showSettings = () => {
+            const settingsSection = document.getElementById('settings-section');
+            const addPasswordSection = document.querySelector('main > div:first-of-type');
+            const insecureSection = document.getElementById('insecure-section');
+            const storedAccountsSection = document.querySelector('main > div:last-of-type');
+            
+            if (settingsSection) {
+                settingsSection.classList.remove('hidden');
+                // Hide main content sections when showing settings
+                if (addPasswordSection && !addPasswordSection.id) {
+                    addPasswordSection.style.display = 'none';
                 }
-            });
-            loginUsername.addEventListener('input', () => {
-                const hint = document.getElementById('demo-hint');
-                if (hint && loginUsername.value.toLowerCase() === 'demouser') {
-                    hint.classList.add('animate-pulse');
-                } else if (hint) {
-                    hint.classList.remove('animate-pulse');
+                if (storedAccountsSection && !storedAccountsSection.id) {
+                    storedAccountsSection.style.display = 'none';
+                }
+                // Keep insecure section visible if it has content
+                settingsVisible = true;
+                fetchMFAStatus();
+            }
+        };
+        
+        const hideSettings = () => {
+            const settingsSection = document.getElementById('settings-section');
+            const addPasswordSection = document.querySelector('main > div:first-of-type');
+            const storedAccountsSection = document.querySelector('main > div:last-of-type');
+            
+            if (settingsSection) {
+                settingsSection.classList.add('hidden');
+                // Show main content again
+                if (addPasswordSection && !addPasswordSection.id) {
+                    addPasswordSection.style.display = '';
+                }
+                if (storedAccountsSection && !storedAccountsSection.id) {
+                    storedAccountsSection.style.display = '';
+                }
+                settingsVisible = false;
+            }
+        };
+        
+        // Settings button toggle
+        const settingsBtn = document.getElementById('settings-btn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                if (settingsVisible) {
+                    hideSettings();
+                } else {
+                    showSettings();
                 }
             });
         }
+        
+        // --- Password Change Functions ---
+        const changePasswordForm = document.getElementById('change-password-form');
+        if (changePasswordForm) {
+            changePasswordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitBtn = document.getElementById('change-password-btn');
+                const currentPassword = document.getElementById('current-password').value;
+                const newPassword = document.getElementById('new-password').value;
+                const confirmPassword = document.getElementById('confirm-new-password').value;
+                const errorEl = document.getElementById('password-change-error');
+                
+                // Clear previous errors
+                errorEl.textContent = '';
+                
+                // Validation
+                if (newPassword !== confirmPassword) {
+                    errorEl.textContent = 'New passwords do not match';
+                    return;
+                }
+                
+                if (newPassword.length < 12) {
+                    errorEl.textContent = 'New password must be at least 12 characters long';
+                    return;
+                }
+                
+                if (!confirm('⚠️ WARNING: Changing your master password will change your encryption key. You will need to re-enter your master password to decrypt your stored passwords. Continue?')) {
+                    return;
+                }
+                
+                setButtonLoading(submitBtn, true);
+                
+                try {
+                    const response = await fetch(`${BASE_PATH}/api/settings/change-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            current_password: currentPassword,
+                            new_password: newPassword
+                        })
+                    });
+                    
+                    if (await handleApiError(response)) {
+                        setButtonLoading(submitBtn, false);
+                        return;
+                    }
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showToast(data.warning || 'Master password changed successfully!', 'success');
+                        changePasswordForm.reset();
+                        
+                        // Update encryption key cookie if provided
+                        if (data.encryption_key) {
+                            // The cookie is set by the server response
+                            showToast('⚠️ Your encryption key has changed. You may need to re-enter your master password to decrypt passwords.', 'info');
+                        }
+                    } else {
+                        errorEl.textContent = data.error || 'Failed to change password';
+                    }
+                } catch (err) {
+                    errorEl.textContent = err.message || 'An error occurred';
+                } finally {
+                    setButtonLoading(submitBtn, false);
+                }
+            });
+        }
+        
+        // --- MFA Functions ---
+        const fetchMFAStatus = async () => {
+            try {
+                const response = await fetch(`${BASE_PATH}/api/mfa/status`);
+                if (await handleApiError(response)) return;
+                const data = await response.json();
+                
+                const mfaEnabledView = document.getElementById('mfa-enabled-view');
+                const mfaDisabledView = document.getElementById('mfa-disabled-view');
+                const mfaStatusBadge = document.getElementById('mfa-status-badge');
+                
+                if (!mfaStatusBadge) return;
+                
+                if (data.mfa_enabled) {
+                    if (mfaEnabledView) mfaEnabledView.classList.remove('hidden');
+                    if (mfaDisabledView) mfaDisabledView.classList.add('hidden');
+                    mfaStatusBadge.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-green-500/20 text-green-300 border border-green-500/30';
+                    mfaStatusBadge.textContent = 'Enabled';
+                    const backupCountEl = document.getElementById('backup-codes-count');
+                    if (backupCountEl) backupCountEl.textContent = data.backup_codes_remaining || 0;
+                } else {
+                    if (mfaEnabledView) mfaEnabledView.classList.add('hidden');
+                    if (mfaDisabledView) mfaDisabledView.classList.remove('hidden');
+                    mfaStatusBadge.className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-500/20 text-gray-300 border border-gray-500/30';
+                    mfaStatusBadge.textContent = 'Disabled';
+                }
+            } catch (error) {
+                console.error('Error fetching MFA status:', error);
+            }
+        };
+        
+        // MFA Verification Form
+        const mfaVerifyForm = document.getElementById('mfa-verify-form');
+        if (mfaVerifyForm) {
+            mfaVerifyForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const code = document.getElementById('mfa-code').value;
+                const userId = document.getElementById('mfa-user-id').value;
+                const password = document.getElementById('mfa-password').value;
+                const errorEl = document.getElementById('mfa-error');
+                
+                try {
+                    const response = await fetch(`${BASE_PATH}/api/mfa/verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: userId, code: code, password: password })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        window.location.href = `${BASE_PATH}/`;
+                    } else {
+                        errorEl.textContent = data.error || data.detail || 'Invalid MFA code';
+                    }
+                } catch (err) {
+                    errorEl.textContent = 'An error occurred during MFA verification.';
+                }
+            });
+        }
+        
+        // MFA Setup
+        const enableMfaSetupBtn = document.getElementById('enable-mfa-setup-btn');
+        if (enableMfaSetupBtn) {
+            enableMfaSetupBtn.addEventListener('click', async () => {
+                try {
+                    const response = await fetch(`${BASE_PATH}/api/mfa/setup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (await handleApiError(response)) return;
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        // Display QR code
+                        const qrImg = document.createElement('img');
+                        qrImg.src = data.qr_code;
+                        qrImg.alt = 'MFA QR Code';
+                        const qrContainer = document.getElementById('mfa-qr-code');
+                        qrContainer.innerHTML = '';
+                        qrContainer.appendChild(qrImg);
+                        
+                        // Display manual key
+                        document.getElementById('mfa-manual-key').textContent = data.manual_entry_key;
+                        
+                        // Display backup codes
+                        const backupCodesContainer = document.getElementById('mfa-backup-codes');
+                        backupCodesContainer.innerHTML = '';
+                        data.backup_codes.forEach(code => {
+                            const codeEl = document.createElement('div');
+                            codeEl.className = 'bg-gray-900 px-2 py-1 rounded text-center';
+                            codeEl.textContent = code;
+                            backupCodesContainer.appendChild(codeEl);
+                        });
+                        
+                        // Show setup modal
+                        document.getElementById('mfa-setup-modal').classList.remove('hidden');
+                    } else {
+                        showToast(data.error || 'Failed to generate MFA secret', 'error');
+                    }
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            });
+        }
+        
+        // Enable MFA
+        const enableMfaBtn = document.getElementById('enable-mfa-btn');
+        if (enableMfaBtn) {
+            enableMfaBtn.addEventListener('click', async () => {
+                const code = document.getElementById('mfa-verify-code').value;
+                const errorEl = document.getElementById('mfa-setup-error');
+                
+                if (!code || code.length !== 6) {
+                    errorEl.textContent = 'Please enter a 6-digit verification code';
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${BASE_PATH}/api/mfa/enable`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code })
+                    });
+                    
+                    if (await handleApiError(response)) return;
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showToast('MFA enabled successfully!', 'success');
+                        document.getElementById('mfa-setup-modal').classList.add('hidden');
+                        fetchMFAStatus();
+                    } else {
+                        errorEl.textContent = data.error || 'Failed to enable MFA';
+                    }
+                } catch (err) {
+                    errorEl.textContent = err.message || 'An error occurred';
+                }
+            });
+        }
+        
+        // Disable MFA
+        const disableMfaBtn = document.getElementById('disable-mfa-btn');
+        if (disableMfaBtn) {
+            disableMfaBtn.addEventListener('click', async () => {
+                const password = prompt('Enter your master password to disable MFA:');
+                if (!password) return;
+                
+                if (!confirm('Are you sure you want to disable MFA? This will reduce your account security.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${BASE_PATH}/api/mfa/disable`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: password })
+                    });
+                    
+                    if (await handleApiError(response)) return;
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        showToast('MFA disabled successfully', 'success');
+                        fetchMFAStatus();
+                    } else {
+                        showToast(data.error || 'Failed to disable MFA', 'error');
+                    }
+                } catch (err) {
+                    showToast(err.message, 'error');
+                }
+            });
+        }
+        
+        // Cancel MFA modals
+        document.getElementById('cancel-mfa')?.addEventListener('click', () => {
+            document.getElementById('mfa-verify-modal').classList.add('hidden');
+            document.getElementById('mfa-code').value = '';
+        });
+        
+        document.getElementById('cancel-mfa-setup')?.addEventListener('click', () => {
+            document.getElementById('mfa-setup-modal').classList.add('hidden');
+        });
+        
+        // --- Initial Load ---
+        checkSession();
+        lucide.createIcons();
     });
     </script>
 </body>

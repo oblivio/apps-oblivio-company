@@ -1,5 +1,0 @@
-werkzeug
-pymongo
-python-dotenv
-PyJWT
-

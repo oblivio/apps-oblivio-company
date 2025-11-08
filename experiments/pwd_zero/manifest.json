@@ -14,19 +14,8 @@
     "link_platform_users": false,
     "user_id_field": "experiment_user_id",
     "auto_link_platform_demo": false,
-    "demo_user_seed_strategy": "auto",
-    "allow_demo_access": true,
-    "demo_users": [
-      {
-        "username": "demouser",
-        "email": "demouser@pwdmanager.com",
-        "password": "DemoMasterPassword123!",
-        "role": "demo",
-        "extra_data": {
-          "is_demo": true
-        }
-      }
-    ]
+    "demo_user_seed_strategy": "disabled",
+    "allow_demo_access": false
   },
   "data_scope": ["self"],
   "managed_indexes": {
@@ -36,6 +25,29 @@
         "type": "regular",
         "keys": { "username": 1 },
         "options": { "unique": true }
+      },
+      {
+        "name": "users_locked_until_index",
+        "type": "regular",
+        "keys": { "locked_until": 1 }
+      }
+    ],
+    "security_events": [
+      {
+        "name": "security_events_user_timestamp_index",
+        "type": "regular",
+        "keys": [
+          ["user_id", 1],
+          ["timestamp", -1]
+        ]
+      },
+      {
+        "name": "security_events_type_timestamp_index",
+        "type": "regular",
+        "keys": [
+          ["event_type", 1],
+          ["timestamp", -1]
+        ]
       }
     ],
     "passwords": [
