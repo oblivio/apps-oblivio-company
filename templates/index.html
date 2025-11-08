@@ -114,22 +114,29 @@
         .logo {
             width: 80px;
             height: 80px;
-            border-radius: 50%;
+            border-radius: 12px;
             overflow: hidden;
             flex-shrink: 0;
-            box-shadow: 0 0 20px rgba(0, 237, 100, 0.4);
-            border: 2px solid rgba(0, 237, 100, 0.3);
-            background: var(--mongodb-dark-blue);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(99, 102, 241, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            background: rgba(17, 24, 39, 0.8);
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 30px rgba(99, 102, 241, 0.3);
         }
 
         .logo img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             object-position: center center;
+            display: block;
         }
 
         .logo-text {
@@ -547,11 +554,11 @@
     <div class="logo-container">
         <div class="logo-brand-group">
             <div class="logo">
-                <img src="/experiments/store_factory/static/img/logo.png" alt="MDB Gnome Logo">
+                <img src="/static/logologo.jpg" alt="OBLIVIO Logo">
             </div>
             <div class="logo-text">
-                <span class="brand-name">mdb-gnome</span>
-                <span class="author">by OBLIVIO</span>
+                <span class="brand-name">OBLIVIO LLC</span>
+                <span class="author">Experiment Labs</span>
             </div>
         </div>
     </div>

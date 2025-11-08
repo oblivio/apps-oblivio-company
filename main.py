@@ -340,6 +340,14 @@ app = FastAPI(
 )
 app.router.redirect_slashes = True
 
+# Mount root-level static files (for logo, etc.)
+if (BASE_DIR / "logologo.jpg").exists():
+    try:
+        app.mount("/static", StaticFiles(directory=str(BASE_DIR)), name="root_static")
+        logger.info("Mounted root static files for logo access")
+    except Exception as e:
+        logger.warning(f"Could not mount root static files: {e}")
+
 # Initialize rate limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
