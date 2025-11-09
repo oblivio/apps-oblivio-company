@@ -234,9 +234,18 @@ async def process_ai_moves_with_broadcast(actor, game_id: str, player_ids: list)
 
 class CreateGameRequest(BaseModel):
     player_id: str = Field(..., min_length=1, max_length=200)
-    game_type: str = Field(..., description="e.g., 'dominoes' or 'blackjack'")
-    game_mode: str = Field(default="classic", description="For dominoes: 'classic' or 'boricua'. For blackjack: 'best_of_5' or 'best_of_10'")
+    game_type: str = Field(default="blackjack", description="e.g., 'dominoes' or 'blackjack'. Defaults to 'blackjack'")
+    game_mode: Optional[str] = Field(default=None, description="For dominoes: 'classic' or 'boricua'. For blackjack: 'best_of_5' or 'best_of_10'. Defaults based on game_type")
     ai_count: int = Field(default=0, ge=0, le=3, description="Number of AI players to add (0-3, max 3, 4 players total max)")
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Set default game_mode based on game_type if not provided
+        if self.game_mode is None:
+            if self.game_type == "dominoes":
+                self.game_mode = "classic"
+            else:  # blackjack or unknown
+                self.game_mode = "best_of_5"
 
 
 class JoinGameRequest(BaseModel):
