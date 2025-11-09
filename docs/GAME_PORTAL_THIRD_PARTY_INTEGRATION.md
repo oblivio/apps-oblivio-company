@@ -39,7 +39,9 @@ const shareLink = `https://apps.oblivio-company.com/experiments/game_portal?game
 - `game_type`: `"blackjack"` or `"dominoes"` (required)
 - `game_mode`: Optional - `"best_of_5"`, `"best_of_10"` for blackjack; `"classic"`, `"boricua"` for dominoes
 - `ai_count`: Number of AI players (0-3, defaults to 0)
-- `player_id`: Optional - if not provided, a placeholder will be created
+- `player_id`: Optional - if not provided, a placeholder will be created and automatically replaced when the user joins
+
+**Note**: When a game is created without a `player_id`, a placeholder player is created. The placeholder is automatically replaced with the user's browser fingerprint when they visit the game link. Placeholders are filtered from the UI and never displayed to users.
 
 ### 2. Poll for Game Updates
 
@@ -141,7 +143,51 @@ function createGameWidget(gameId) {
 }
 ```
 
-### 4. Complete Integration Example
+### 4. Create or Join Lobby (Circle Integration)
+
+For circle-based games (e.g., mycircles integration), use the lobby endpoint to automatically create or join an existing waiting lobby:
+
+```javascript
+async function createOrJoinLobby(circleId, gameType, playerId) {
+  const response = await fetch(
+    `https://apps.oblivio-company.com/experiments/game_portal/backend/lobby/${circleId}/${gameType}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: playerId })
+    }
+  );
+  
+  if (!response.ok) {
+    throw new Error('Failed to create/join lobby');
+  }
+  
+  const result = await response.json();
+  // Returns: { game_id, player_id, game_type, game_mode, action: "created" | "joined", 
+  //            players, ai_players, player_count, status }
+  
+  return result;
+}
+
+// Example: Create or join a blackjack lobby for circle "circle123"
+const lobby = await createOrJoinLobby('circle123', 'blackjack', 'user456');
+console.log(`Lobby ${lobby.action}:`, lobby.game_id);
+```
+
+**How it works:**
+1. First checks if a waiting lobby exists for the given `circle_id` and `game_type`
+2. If found, joins the existing lobby (replacing placeholder if present)
+3. If not found, creates a new lobby with a placeholder player
+4. The placeholder is automatically replaced when the user visits the game link
+
+**Response fields:**
+- `action`: `"created"` if a new lobby was created, `"joined"` if joined an existing one
+- `game_id`: The game ID to use for joining/polling
+- `status`: Current game status (`"waiting"`, `"in_progress"`, etc.)
+- `players`: Array of player IDs (placeholders are filtered from display)
+- `ai_players`: Array of AI player IDs
+
+### 5. Complete Integration Example
 
 Here's a complete example for a third-party site:
 
@@ -203,6 +249,8 @@ function startPolling(gameId) {
 3. **User Experience**: Show loading states while polling and provide clear join links
 4. **Game State**: Use the `status` field to determine what UI to show (lobby vs. in-progress)
 5. **Share Links**: Always provide shareable links so users can invite friends
+6. **Placeholder Handling**: Placeholders are automatically handled - they're created during game creation and replaced when users join. You don't need to handle placeholders manually.
+7. **Player IDs**: Use stable, unique identifiers for players (e.g., user IDs from your database). Browser fingerprints are used for public games.
 
 ## Security Notes
 
@@ -210,6 +258,8 @@ function startPolling(gameId) {
 - Game state summaries exclude sensitive information (other players' hands, etc.)
 - Players must join games through the official Game Portal interface
 - No authentication required for public games (uses browser fingerprinting)
+- Placeholders are automatically filtered from the UI and never displayed to users
+- Player IDs are validated server-side to prevent malicious input
 
 ## Example Use Cases
 

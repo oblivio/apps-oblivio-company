@@ -704,6 +704,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const isAI = p.isAI || false;
             const isSpectator = p.isSpectator || false;
             const playerId = p.player_id || p.playerId || 'unknown';
+            
+            // Filter out placeholder players - they should never be displayed
+            if (playerId && (playerId.startsWith('PLACEHOLDER_') || playerId.startsWith('placeholder_'))) {
+                console.warn('Found placeholder player in players list, skipping display:', playerId);
+                return; // Skip rendering placeholder players
+            }
+            
+            // Also filter out any suspicious player IDs that might be incorrectly generated
+            // (e.g., "player_8" without a proper suffix suggests a malformed ID)
+            if (playerId && playerId.match(/^player_\d+$/)) {
+                console.warn('Found suspicious player ID pattern (player_#), skipping display:', playerId);
+                return; // Skip rendering suspicious player IDs
+            }
+            
             const displayName = isAI ? `AutoBot` : isSpectator ? `Spectator ${playerId.substring(0, 8)}` : `Player ${playerId.substring(0, 8)}`;
             const aiBadge = isAI ? '<span style="background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); color: white; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem;">🤖 AI</span>' : '';
             const spectatorBadge = isSpectator ? '<span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem;">👀 Spectator</span>' : '';
@@ -1843,11 +1857,32 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             if (joinResponse.ok) {
                                 console.log('Successfully replaced placeholder, connecting WebSocket...');
+                                // Verify placeholder was actually replaced
+                                if (joinData.replaced_placeholder) {
+                                    console.log('Placeholder replacement confirmed:', joinData.replaced_placeholder);
+                                }
                                 connectWebSocket(gameId, browserFingerprint);
                             } else {
                                 console.error('Failed to replace placeholder:', joinData);
-                                // Fallback: try to connect anyway
-                                connectWebSocket(gameId, browserFingerprint);
+                                // If join failed, try again after a short delay
+                                setTimeout(async () => {
+                                    const retryResponse = await fetch(`${basePath}/api/game/${gameId}/join`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ 
+                                            player_id: browserFingerprint
+                                        })
+                                    });
+                                    const retryData = await retryResponse.json();
+                                    if (retryResponse.ok) {
+                                        console.log('Placeholder replacement succeeded on retry');
+                                        connectWebSocket(gameId, browserFingerprint);
+                                    } else {
+                                        console.error('Placeholder replacement failed on retry:', retryData);
+                                        // Last resort: try to connect anyway
+                                        connectWebSocket(gameId, browserFingerprint);
+                                    }
+                                }, 500);
                             }
                         } else {
                             // No placeholder found, just join normally
@@ -1862,6 +1897,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             const joinData = await joinResponse.json();
                             if (joinResponse.ok) {
                                 connectWebSocket(gameId, browserFingerprint);
+                            } else {
+                                console.error('Failed to join game:', joinData);
                             }
                         }
                     } catch (err) {

@@ -105,9 +105,12 @@ Join an existing game lobby or mid-game.
   "game_type": "blackjack",
   "game_mode": "classic",
   "role": "player",  // or "spectator"
-  "replaced_ai": "AI_ABC123_0"  // if replaced an AI player
+  "replaced_ai": "AI_ABC123_0",  // if replaced an AI player
+  "replaced_placeholder": "PLACEHOLDER_abc123"  // if replaced a placeholder
 }
 ```
+
+**Note**: When joining a game with a placeholder player, the placeholder is automatically replaced. The `replaced_placeholder` field indicates which placeholder was replaced.
 
 **Example**:
 ```javascript
@@ -280,6 +283,54 @@ const { ai_slots } = await response.json();
 console.log('Available AI slots:', ai_slots);
 ```
 
+### 7. Create or Join Lobby (Circle Integration)
+
+Create or join a lobby for a specific circle and game type. If a waiting lobby exists, joins it; otherwise creates a new one.
+
+**Endpoint**: `POST /lobby/{circle_id}/{game_type}`
+
+**Path Parameters**:
+- `circle_id` (string, required): The circle ID (e.g., from mycircles)
+- `game_type` (string, required): `"blackjack"` or `"dominoes"`
+
+**Request Body**:
+```json
+{
+  "player_id": "user123"
+}
+```
+
+**Response**:
+```json
+{
+  "game_id": "ABC123",
+  "player_id": "user123",
+  "game_type": "blackjack",
+  "game_mode": "best_of_5",
+  "action": "created",  // or "joined"
+  "players": ["user123"],
+  "ai_players": [],
+  "player_count": 1,
+  "status": "waiting"
+}
+```
+
+**Example**:
+```javascript
+const circleId = 'circle123';
+const gameType = 'blackjack';
+const response = await fetch(`https://your-domain.com/experiments/game_portal/backend/lobby/${circleId}/${gameType}`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ player_id: 'user123' })
+});
+
+const result = await response.json();
+console.log(`Lobby ${result.action}:`, result.game_id);
+```
+
+**Note**: This endpoint automatically handles placeholder replacement. If a new lobby is created, a placeholder is created and will be replaced when the user visits the game link.
+
 ## Error Handling
 
 All endpoints return standard HTTP status codes:
@@ -288,6 +339,7 @@ All endpoints return standard HTTP status codes:
 - `400 Bad Request`: Invalid request parameters
 - `404 Not Found`: Game not found
 - `500 Internal Server Error`: Server error
+- `503 Service Unavailable`: Ray service unavailable (check Ray cluster status)
 
 Error responses follow this format:
 ```json
@@ -517,6 +569,16 @@ class GamePortalClient {
     if (!response.ok) throw new Error(await response.text());
     return await response.json();
   }
+
+  async createOrJoinLobby(circleId, gameType, playerId) {
+    const response = await fetch(`${this.baseUrl}/lobby/${circleId}/${gameType}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: playerId })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return await response.json();
+  }
 }
 
 // Usage
@@ -541,6 +603,10 @@ console.log('Game state:', state);
 if (game.host_id === 'user123') {
   await client.startGame(game.game_id, 'user123');
 }
+
+// Create or join lobby for a circle
+const lobby = await client.createOrJoinLobby('circle123', 'blackjack', 'user123');
+console.log(`Lobby ${lobby.action}:`, lobby.game_id);
 ```
 
 ## Best Practices
@@ -551,6 +617,8 @@ if (game.host_id === 'user123') {
 4. **Game Links**: Store game IDs in your database and generate shareable links
 5. **Security**: Validate player IDs on your side before making API calls
 6. **Rate Limiting**: Be aware of rate limits and implement exponential backoff for retries
+7. **Placeholder Handling**: Placeholders are automatically created and replaced - you don't need to handle them manually. They're filtered from the UI and never displayed to users.
+8. **Ray Availability**: If you receive a `503 Service Unavailable` error, it means Ray is unavailable. Check Ray cluster status and retry after a delay.
 
 ## Support
 
