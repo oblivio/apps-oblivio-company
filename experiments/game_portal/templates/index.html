@@ -1297,22 +1297,20 @@
                                 const actualGameId = createData.game_id;
                                 console.log('Auto-join: Game created successfully', { actualGameId, requestedGameId: gameId.toUpperCase() });
                                 
-                                // Update URL if game ID is different
-                                if (actualGameId !== gameId.toUpperCase()) {
-                                    const newUrl = new URL(window.location);
-                                    newUrl.searchParams.set('game', actualGameId);
-                                    window.history.replaceState({}, '', newUrl);
-                                    console.log('Auto-join: Updated URL with actual game ID', actualGameId);
-                                }
+                                // Update URL with actual game ID
+                                const newUrl = new URL(window.location);
+                                newUrl.searchParams.set('game', actualGameId);
+                                window.history.replaceState({}, '', newUrl);
+                                console.log('Auto-join: Updated URL with actual game ID', actualGameId);
                                 
-                                // Store the actual game ID
+                                // Store the actual game ID (use actualGameId, not gameId)
                                 window.autoJoinGameId = actualGameId;
                                 window.autoJoinPlayerId = finalPlayerId;
                                 joinSuccess = true;
+                                alreadyInGame = true; // We're the host, so we're already in the game
                                 console.log('Auto-join: Stored game info after creation', { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId });
                                 
-                                // No need to join - we're already the host
-                                return; // Exit early, app.js will handle WebSocket connection
+                                // Continue to WebSocket connection setup (don't return early)
                             } else {
                                 // Create failed
                                 const errorMsg = createData.error || createData.detail || 'Unknown error';
@@ -1343,8 +1341,20 @@
                             lobbyView.style.display = 'block';
                             lobbyView.classList.remove('hidden');
                         }
-                        alert(`❌ Game ${gameId.toUpperCase()} does not exist. Please provide game_type parameter to create it.`);
+                        alert(`❌ Game ${gameId.toUpperCase()} does not exist. Please provide game_type parameter (e.g., ?game=${gameId.toUpperCase()}&game_type=blackjack) to create it.`);
                         return;
+                    }
+                    
+                    // If we created a game, we're done - skip join logic
+                    if (joinSuccess && alreadyInGame && window.autoJoinGameId) {
+                        console.log('Auto-join: Game created successfully, skipping join logic');
+                        // Remove loading spinner - app.js will handle the WebSocket connection
+                        if (loadingDiv) {
+                            loadingDiv.remove();
+                        }
+                        // Make sure window variables are set
+                        console.log('Auto-join: Final game info', { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId });
+                        return; // Exit early since we already stored the game info
                     }
                     
                     // Game exists - try to join
@@ -1412,10 +1422,32 @@
                         return;
                     }
                     
-                    // Store game info for app.js to use
-                    window.autoJoinGameId = gameId.toUpperCase();
-                    window.autoJoinPlayerId = finalPlayerId;
+                    // Store game info for app.js to use (use actual game ID if we created a game)
+                    if (!window.autoJoinGameId) {
+                        window.autoJoinGameId = gameId.toUpperCase();
+                    }
+                    if (!window.autoJoinPlayerId) {
+                        window.autoJoinPlayerId = finalPlayerId;
+                    }
                     console.log('Auto-join: Stored game info', { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId });
+                    
+                    // Remove loading spinner - app.js will handle the WebSocket connection
+                    if (loadingDiv) {
+                        loadingDiv.remove();
+                    }
+                    
+                    // Trigger connection check for app.js (in case it's already loaded)
+                    if (window.checkUrlForGame && typeof window.checkUrlForGame === 'function') {
+                        console.log('Auto-join: Triggering app.js connection check');
+                        window.checkUrlForGame();
+                    } else {
+                        // Dispatch custom event to notify app.js
+                        const event = new CustomEvent('autoJoinComplete', {
+                            detail: { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId }
+                        });
+                        window.dispatchEvent(event);
+                        console.log('Auto-join: Dispatched autoJoinComplete event');
+                    }
                     
                     // Wait for app.js to load and handle the WebSocket connection
                     // The existing connectWebSocket() function will be called when app.js loads

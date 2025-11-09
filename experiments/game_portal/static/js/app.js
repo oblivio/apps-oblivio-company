@@ -1832,6 +1832,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Expose checkUrlForGame to window for auto-join script
+    window.checkUrlForGame = checkUrlForGame;
+    
+    // Listen for auto-join completion event
+    window.addEventListener('autoJoinComplete', (event) => {
+        console.log('Auto-join complete event received', event.detail);
+        if (event.detail && event.detail.gameId && event.detail.playerId) {
+            window.autoJoinGameId = event.detail.gameId;
+            window.autoJoinPlayerId = event.detail.playerId;
+        }
+        // Trigger connection check
+        setTimeout(() => {
+            checkUrlForGame();
+        }, 100);
+    });
+    
     checkUrlForGame();
     
     startGameBtn.addEventListener('click', sendStartGame);
