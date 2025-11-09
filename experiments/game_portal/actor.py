@@ -8,6 +8,7 @@ import random
 import string
 import pathlib
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 import ray
 from bson import ObjectId
 
@@ -101,7 +102,7 @@ class ExperimentActor:
         # Maximum is 4 players total for all game types
         return 4
 
-    def create_game(self, player_id: str, game_type: str, game_mode: str = "classic", ai_count: int = 0) -> Dict[str, Any]:
+    async def create_game(self, player_id: str, game_type: str, game_mode: str = "classic", ai_count: int = 0) -> Dict[str, Any]:
         """Create a new game lobby with optional AI players."""
         self._check_ready()
         
@@ -145,7 +146,7 @@ class ExperimentActor:
             "players": players,
             "status": "waiting",
             "game_state": None,
-            "created_at": None,
+            "created_at": datetime.utcnow(),
             "min_players": min_players,
             "max_players": max_players
         }
@@ -153,6 +154,25 @@ class ExperimentActor:
         self.games[game_id] = game
         self.ai_players[game_id] = ai_players
         self.spectators[game_id] = []
+        
+        # Persist game to database (for durability and analytics)
+        try:
+            game_doc = game.copy()
+            game_doc["_id"] = game_id
+            game_doc["ai_players"] = ai_players
+            game_doc["spectators"] = []
+            # Convert datetime to ISO format for JSON serialization
+            if game_doc.get("created_at"):
+                game_doc["created_at"] = game_doc["created_at"].isoformat()
+            await self.db.games.replace_one(
+                {"_id": game_id},
+                game_doc,
+                upsert=True
+            )
+            logger.debug(f"Persisted game {game_id} to database")
+        except Exception as e:
+            # Log but don't fail - in-memory state is primary
+            logger.warning(f"Failed to persist game {game_id} to database: {e}")
         
         logger.info(f"Created game {game_id} by {player_id} ({game_type}, {game_mode}) with {len(players)} players ({len(ai_players)} AI)")
         
@@ -214,10 +234,17 @@ class ExperimentActor:
             ai_to_replace = None
             if self.ai_players.get(game_id):
                 ai_to_replace = self.ai_players[game_id][0]
-                ai_index = game["players"].index(ai_to_replace)
-                game["players"][ai_index] = player_id
-                self.ai_players[game_id].remove(ai_to_replace)
-                logger.info(f"Player {player_id} replaced AI {ai_to_replace} in game {game_id}")
+                # Safety check: ensure AI player is actually in the players list
+                if ai_to_replace in game["players"]:
+                    ai_index = game["players"].index(ai_to_replace)
+                    game["players"][ai_index] = player_id
+                    self.ai_players[game_id].remove(ai_to_replace)
+                    logger.info(f"Player {player_id} replaced AI {ai_to_replace} in game {game_id}")
+                else:
+                    # AI player not in players list (shouldn't happen, but handle gracefully)
+                    logger.warning(f"AI player {ai_to_replace} not found in players list for game {game_id}, adding player normally")
+                    game["players"].append(player_id)
+                    logger.info(f"Player {player_id} joined game {game_id} (AI replacement skipped)")
             else:
                 game["players"].append(player_id)
                 logger.info(f"Player {player_id} joined game {game_id}")
@@ -281,7 +308,7 @@ class ExperimentActor:
         
         return {"error": "Cannot join game in current state"}
 
-    def start_game(self, game_id: str, player_id: str) -> Dict[str, Any]:
+    async def start_game(self, game_id: str, player_id: str) -> Dict[str, Any]:
         """Start a game. Minimum players are already enforced via auto-fill."""
         self._check_ready()
         
@@ -323,10 +350,41 @@ class ExperimentActor:
         
         game["game_state"] = game_state
         game["status"] = "in_progress"
+        game["started_at"] = datetime.utcnow()
+        
+        # Persist game state update to database
+        try:
+            game_doc = game.copy()
+            game_doc["_id"] = game_id
+            game_doc["ai_players"] = self.ai_players.get(game_id, [])
+            game_doc["spectators"] = self.spectators.get(game_id, [])
+            # Convert datetime to ISO format
+            if game_doc.get("created_at") and isinstance(game_doc["created_at"], datetime):
+                game_doc["created_at"] = game_doc["created_at"].isoformat()
+            if game_doc.get("started_at") and isinstance(game_doc["started_at"], datetime):
+                game_doc["started_at"] = game_doc["started_at"].isoformat()
+            await self.db.games.replace_one(
+                {"_id": game_id},
+                game_doc,
+                upsert=True
+            )
+            logger.debug(f"Persisted game {game_id} start to database")
+        except Exception as e:
+            logger.warning(f"Failed to persist game {game_id} start to database: {e}")
         
         logger.info(f"Game {game_id} started with {len(game['players'])} players ({len(self.ai_players.get(game_id, []))} AI)")
         
         return {"success": True}
+
+    def _serialize_datetime(self, obj: Any) -> Any:
+        """Recursively convert datetime objects to ISO format strings for serialization."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        elif isinstance(obj, dict):
+            return {key: self._serialize_datetime(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._serialize_datetime(item) for item in obj]
+        return obj
 
     def get_game(self, game_id: str) -> Optional[Dict[str, Any]]:
         """Get game information."""
@@ -339,7 +397,9 @@ class ExperimentActor:
         # Add AI and spectator info
         game["ai_players"] = self.ai_players.get(game_id, [])
         game["spectators"] = self.spectators.get(game_id, [])
-        return game
+        
+        # Convert datetime objects to ISO format for serialization (Ray/FastAPI)
+        return self._serialize_datetime(game)
     
     def get_available_ai_slots(self, game_id: str) -> List[str]:
         """Get list of AI players that can be replaced."""
@@ -404,7 +464,7 @@ class ExperimentActor:
         
         return sanitized
 
-    def play_move(self, game_id: str, player_id: str, move_data: Dict[str, Any], allow_ai: bool = False) -> Dict[str, Any]:
+    async def play_move(self, game_id: str, player_id: str, move_data: Dict[str, Any], allow_ai: bool = False) -> Dict[str, Any]:
         """Process a player's move."""
         self._check_ready()
         
@@ -439,6 +499,27 @@ class ExperimentActor:
             # Check if game is finished
             if new_state.get("status") in ["finished", "hand_finished", "round_finished"]:
                 game["status"] = new_state["status"]
+                
+                # If game is completely finished, persist final state
+                if new_state.get("status") == "finished":
+                    game["finished_at"] = datetime.utcnow()
+                    try:
+                        game_doc = game.copy()
+                        game_doc["_id"] = game_id
+                        game_doc["ai_players"] = self.ai_players.get(game_id, [])
+                        game_doc["spectators"] = self.spectators.get(game_id, [])
+                        # Convert datetime to ISO format
+                        for date_field in ["created_at", "started_at", "finished_at"]:
+                            if game_doc.get(date_field) and isinstance(game_doc[date_field], datetime):
+                                game_doc[date_field] = game_doc[date_field].isoformat()
+                        await self.db.games.replace_one(
+                            {"_id": game_id},
+                            game_doc,
+                            upsert=True
+                        )
+                        logger.info(f"Persisted finished game {game_id} to database")
+                    except Exception as e:
+                        logger.warning(f"Failed to persist finished game {game_id} to database: {e}")
                 
                 # Automatically mark AI players as ready for next round/hand
                 if new_state.get("status") == "round_finished":
@@ -503,7 +584,7 @@ class ExperimentActor:
             logger.error(f"Error processing move: {e}", exc_info=True)
             return {"error": f"Failed to process move: {str(e)}"}
 
-    def process_single_ai_move(self, game_id: str) -> Dict[str, Any]:
+    async def process_single_ai_move(self, game_id: str) -> Dict[str, Any]:
         """Process a single AI move and return whether to continue."""
         self._check_ready()
         
@@ -554,7 +635,7 @@ class ExperimentActor:
             
             # Allow AI to make moves by passing allow_ai=True
             logger.info(f"Making AI move for {current_player_id}: {move_data}")
-            result = self.play_move(game_id, current_player_id, move_data, allow_ai=True)
+            result = await self.play_move(game_id, current_player_id, move_data, allow_ai=True)
             if result.get("error"):
                 logger.warning(f"AI move failed for {current_player_id}: {result.get('error')}")
                 return {"continue": False}
@@ -728,4 +809,47 @@ class ExperimentActor:
         game["status"] = "in_progress"
         
         return {"success": True}
+
+    async def initialize(self):
+        """
+        Post-initialization hook: performs setup and verification.
+        This is called automatically when the actor starts up.
+        """
+        import sys
+        print(f"[{self.write_scope}-Actor] ⚡ INITIALIZE CALLED - Starting post-initialization setup...", flush=True, file=sys.stderr)
+        logger.info(f"[{self.write_scope}-Actor] ⚡ INITIALIZE CALLED - Starting post-initialization setup...")
+        
+        try:
+            # Verify database is ready
+            if not self.db:
+                raise RuntimeError("Database not initialized")
+            
+            # Verify templates are loaded (if needed)
+            if not self.templates:
+                logger.warning(f"[{self.write_scope}-Actor] Templates not loaded, but continuing...")
+            
+            # Verify we can access the database
+            try:
+                # Test database connection by checking collection access
+                test_query = await self.db.games.find_one({}, {"_id": 1})
+                logger.info(f"[{self.write_scope}-Actor] Database connection verified. Test query successful.")
+            except Exception as test_e:
+                logger.error(f"[{self.write_scope}-Actor] Database connection test failed: {test_e}", exc_info=True)
+                raise
+            
+            # Count existing games in database (for monitoring)
+            try:
+                count = await self.db.games.count_documents({})
+                logger.info(f"[{self.write_scope}-Actor] Found {count} existing game records in database.")
+            except Exception as count_e:
+                logger.warning(f"[{self.write_scope}-Actor] Could not count games: {count_e}")
+            
+            logger.info(f"[{self.write_scope}-Actor] ✅ Game Portal initialized and ready")
+            print(f"[{self.write_scope}-Actor] ✅ Game Portal initialized and ready", flush=True, file=sys.stderr)
+                
+        except Exception as e:
+            import traceback
+            print(f"[{self.write_scope}-Actor] ❌ ERROR during initialization: {e}", flush=True, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            logger.error(f"[{self.write_scope}-Actor] ❌ ERROR during initialization: {e}", exc_info=True)
 

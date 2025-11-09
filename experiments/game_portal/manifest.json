@@ -11,6 +11,22 @@
         "name": "games_status_index",
         "type": "regular",
         "keys": { "status": 1 }
+      },
+      {
+        "name": "games_created_at_index",
+        "type": "regular",
+        "keys": { "created_at": -1 }
+      },
+      {
+        "name": "games_game_type_status_index",
+        "type": "regular",
+        "keys": { "game_type": 1, "status": 1 }
+      },
+      {
+        "name": "games_host_id_index",
+        "type": "regular",
+        "keys": { "host_id": 1 },
+        "options": { "sparse": true }
       }
     ]
   }

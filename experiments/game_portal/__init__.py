@@ -84,6 +84,30 @@ async def get_actor_handle_ws(websocket: WebSocket) -> "ray.actor.ActorHandle":
         return None
 
 
+def get_backend_actor_handle(request: Request) -> "ray.actor.ActorHandle":
+    """Get actor handle for backend API (separate FastAPI app, doesn't have slug_id in state)."""
+    # Backend API is a separate FastAPI app, so we need to get the actor directly
+    # The slug_id is always "game_portal" for this experiment
+    slug_id = "game_portal"
+    actor_name = f"{slug_id}-actor"
+    
+    if not getattr(request.app.state, "ray_is_available", False):
+        logger.error("Ray is globally unavailable in backend API")
+        raise HTTPException(
+            status_code=503,
+            detail="Ray service is unavailable. Check Ray cluster status."
+        )
+    
+    try:
+        return ray.get_actor(actor_name, namespace="modular_labs")
+    except ValueError:
+        logger.error(f"CRITICAL: Actor '{actor_name}' not found in backend API")
+        raise HTTPException(503, f"Experiment service '{actor_name}' is not running.")
+    except Exception as e:
+        logger.error(f"Failed to get actor handle in backend API: {e}", exc_info=True)
+        raise HTTPException(500, "Error connecting to experiment service.")
+
+
 async def broadcast_to_game(game_id: str, message: Dict[str, Any]):
     """Broadcast message to all players in a game."""
     if game_id in active_connections:
@@ -525,7 +549,7 @@ async def auto_create_game(
 async def _backend_create_game_impl(request: Request, create_req: CreateGameRequest):
     """Implementation for creating a game."""
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         # Re-raise HTTPException (includes 503 for Ray unavailable)
         raise e
@@ -544,7 +568,7 @@ async def _backend_create_game_impl(request: Request, create_req: CreateGameRequ
 async def _backend_join_game_impl(request: Request, game_id: str, join_req: JoinGameRequest):
     """Implementation for joining a game."""
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         # Re-raise HTTPException (includes 503 for Ray unavailable)
         raise e
@@ -567,7 +591,8 @@ async def _backend_join_game_impl(request: Request, game_id: str, join_req: Join
         "type": "player_joined",
         "player_id": join_req.player_id,
         "role": result.get("role", "player"),
-        "replaced_ai": result.get("replaced_ai")
+        "replaced_ai": result.get("replaced_ai"),
+        "replaced_placeholder": result.get("replaced_placeholder")
     })
     
     return result
@@ -575,7 +600,7 @@ async def _backend_join_game_impl(request: Request, game_id: str, join_req: Join
 async def _backend_get_game_impl(request: Request, game_id: str):
     """Implementation for getting game info."""
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         # Re-raise HTTPException (includes 503 for Ray unavailable)
         raise e
@@ -605,7 +630,7 @@ async def _backend_get_game_impl(request: Request, game_id: str):
 async def _backend_get_ai_slots_impl(request: Request, game_id: str):
     """Implementation for getting AI slots."""
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         # Re-raise HTTPException (includes 503 for Ray unavailable)
         raise e
@@ -619,7 +644,7 @@ async def _backend_get_ai_slots_impl(request: Request, game_id: str):
 async def _backend_start_game_impl(request: Request, game_id: str, player_id: str = Body(..., embed=True)):
     """Implementation for starting a game."""
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         # Re-raise HTTPException (includes 503 for Ray unavailable)
         raise e
@@ -635,7 +660,7 @@ async def _backend_start_game_impl(request: Request, game_id: str, player_id: st
 async def _backend_get_game_state_impl(request: Request, game_id: str, player_id: Optional[str] = None):
     """Backend API: Get game state (sanitized for player if player_id provided). Accessible from *.oblivio-company.com"""
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         # Re-raise HTTPException (includes 503 for Ray unavailable)
         raise e
@@ -682,7 +707,7 @@ async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_u
     Accessible from *.oblivio-company.com
     """
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -772,7 +797,7 @@ async def _backend_auto_create_game_impl(
 ):
     """Backend API: Automatically create a new game and auto-join the player. Accessible from *.oblivio-company.com"""
     try:
-        actor = get_actor_handle(request)
+        actor = get_backend_actor_handle(request)
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -783,9 +808,10 @@ async def _backend_auto_create_game_impl(
     if game_type not in ["blackjack", "dominoes"]:
         raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
     
-    # Get or generate player_id
-    if not player_id:
-        player_id = await _get_or_generate_player_id(request)
+    # Create a placeholder player_id that will be replaced by the frontend
+    # Use a special prefix so the frontend knows to replace it
+    import secrets
+    placeholder_player_id = f"PLACEHOLDER_{secrets.token_hex(8)}"
     
     # Set default game_mode if not provided
     if game_mode is None:
@@ -797,9 +823,9 @@ async def _backend_auto_create_game_impl(
     # Clamp ai_count to valid range
     ai_count = max(0, min(3, ai_count))
     
-    # Create game
+    # Create game with placeholder player
     result = await actor.create_game.remote(
-        player_id=player_id,
+        player_id=placeholder_player_id,
         game_type=game_type,
         game_mode=game_mode,
         ai_count=ai_count
