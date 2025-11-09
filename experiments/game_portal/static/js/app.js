@@ -1781,8 +1781,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkUrlForGame() {
         const urlParams = new URLSearchParams(window.location.search);
         const gameId = urlParams.get('game');
+        const playerIdFromUrl = urlParams.get('player_id');
         
-        console.log('checkUrlForGame:', { gameId, autoJoinGameId: window.autoJoinGameId, autoJoinPlayerId: window.autoJoinPlayerId });
+        console.log('checkUrlForGame:', { gameId, playerIdFromUrl, autoJoinGameId: window.autoJoinGameId, autoJoinPlayerId: window.autoJoinPlayerId });
         
         // Check if auto-join script already joined
         if (window.autoJoinGameId && window.autoJoinPlayerId) {
@@ -1804,6 +1805,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // This can happen if app.js loads before auto-join script completes
         if (gameId) {
             console.log('URL has game parameter, waiting for auto-join...');
+            
+            // If player_id is in URL, use it directly (from auto-create endpoint)
+            if (playerIdFromUrl) {
+                console.log('Player ID from URL, connecting directly...');
+                setTimeout(async () => {
+                    if (!browserFingerprint) {
+                        browserFingerprint = await generateFingerprint();
+                    }
+                    // Use player_id from URL if provided, otherwise use browser fingerprint
+                    const playerIdToUse = playerIdFromUrl || browserFingerprint;
+                    connectWebSocket(gameId, playerIdToUse);
+                }, 100);
+                return;
+            }
+            
             // Don't show lobby - auto-join should handle it
             // Wait a bit for auto-join to complete
             const checkAutoJoin = setInterval(() => {

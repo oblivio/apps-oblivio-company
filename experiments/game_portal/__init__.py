@@ -400,12 +400,136 @@ async def get_current_user_id(request: Request):
     }
 
 
+async def _get_or_generate_player_id(request: Request) -> str:
+    """Get player ID from authenticated user or generate a temporary one."""
+    slug_id = getattr(request.state, "slug_id", "game_portal")
+    
+    # Try to get user from sub-auth session
+    try:
+        from sub_auth import get_experiment_sub_user
+        from experiment_db import get_experiment_db
+        from core_deps import get_experiment_config
+        
+        config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
+        if config:
+            sub_auth = config.get("sub_auth", {})
+            if sub_auth.get("enabled", False):
+                db = await get_experiment_db(request)
+                experiment_user = await get_experiment_sub_user(request, slug_id, db, config, allow_demo_fallback=True)
+                if experiment_user:
+                    return str(experiment_user.get("_id"))
+    except Exception as e:
+        logger.debug(f"Could not get user from sub-auth: {e}")
+    
+    # Try to get user from platform auth
+    try:
+        from core_deps import get_current_user
+        
+        token = request.cookies.get("token")
+        if token:
+            platform_user = await get_current_user(token=token)
+            if platform_user:
+                user_id = str(platform_user.get("user_id", platform_user.get("_id", "")))
+                if user_id:
+                    return user_id
+    except Exception as e:
+        logger.debug(f"Could not get user from platform auth: {e}")
+    
+    # Generate a temporary player ID based on session/IP
+    # This will be replaced by browser fingerprint on the frontend
+    import hashlib
+    import secrets
+    session_id = request.cookies.get("session_id") or secrets.token_hex(16)
+    ip_address = request.client.host if request.client else "unknown"
+    fingerprint_data = f"{session_id}|{ip_address}|{request.headers.get('user-agent', 'unknown')}"
+    player_id = "temp_" + hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
+    return player_id
+
+
+@bp.get("/new/{game_type}", response_class=HTMLResponse, name="auto_create_game")
+async def auto_create_game(
+    request: Request, 
+    game_type: str,
+    game_mode: Optional[str] = None,
+    ai_count: int = 0
+):
+    """
+    Automatically create a new game of the specified type, auto-join the player, and redirect to the lobby.
+    
+    Query parameters:
+    - game_mode: Optional game mode (e.g., 'classic', 'boricua' for dominoes; 'best_of_5', 'best_of_10' for blackjack)
+    - ai_count: Number of AI players to add (0-3, defaults to 0)
+    """
+    # Validate game_type
+    if game_type not in ["blackjack", "dominoes"]:
+        raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
+    
+    # Get or generate player_id
+    player_id = await _get_or_generate_player_id(request)
+    
+    # Get actor handle
+    actor = get_actor_handle(request)
+    
+    # Set default game_mode if not provided
+    if game_mode is None:
+        if game_type == "dominoes":
+            game_mode = "classic"
+        else:  # blackjack
+            game_mode = "best_of_5"
+    
+    # Clamp ai_count to valid range
+    ai_count = max(0, min(3, ai_count))
+    
+    # Create game
+    try:
+        result = await actor.create_game.remote(
+            player_id=player_id,
+            game_type=game_type,
+            game_mode=game_mode,
+            ai_count=ai_count
+        )
+        
+        if result.get("error"):
+            raise HTTPException(status_code=400, detail=result["error"])
+        
+        game_id = result.get("game_id")
+        if not game_id:
+            raise HTTPException(status_code=500, detail="Failed to create game")
+        
+        # Auto-join the player (they're already the host, but ensure they're in the game)
+        # The create_game already adds the player, so we just need to redirect
+        
+        # Redirect to the game lobby with the game_id
+        from fastapi.responses import RedirectResponse
+        # Get the base path by removing /new/{game_type} from the path
+        base_path = request.url.path.rsplit("/new/", 1)[0]
+        if not base_path:
+            base_path = "/"
+        # Use relative URL for redirect
+        redirect_url = f"{base_path}?game={game_id}&player_id={player_id}"
+        return RedirectResponse(url=redirect_url, status_code=302)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in auto_create_game: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create game: {str(e)}")
+
+
 # --- Backend API Endpoints (CORS-enabled for *.oblivio-company.com) ---
 # Support both /game/... and /api/game/... paths for compatibility
 
 async def _backend_create_game_impl(request: Request, create_req: CreateGameRequest):
     """Implementation for creating a game."""
-    actor = get_actor_handle(request)
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        # Re-raise HTTPException (includes 503 for Ray unavailable)
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
     result = await actor.create_game.remote(
         player_id=create_req.player_id,
         game_type=create_req.game_type,
@@ -416,7 +540,15 @@ async def _backend_create_game_impl(request: Request, create_req: CreateGameRequ
 
 async def _backend_join_game_impl(request: Request, game_id: str, join_req: JoinGameRequest):
     """Implementation for joining a game."""
-    actor = get_actor_handle(request)
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        # Re-raise HTTPException (includes 503 for Ray unavailable)
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
     result = await actor.join_game.remote(
         game_id, 
         join_req.player_id,
@@ -439,7 +571,15 @@ async def _backend_join_game_impl(request: Request, game_id: str, join_req: Join
 
 async def _backend_get_game_impl(request: Request, game_id: str):
     """Implementation for getting game info."""
-    actor = get_actor_handle(request)
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        # Re-raise HTTPException (includes 503 for Ray unavailable)
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
     game = await actor.get_game.remote(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -461,13 +601,29 @@ async def _backend_get_game_impl(request: Request, game_id: str):
 
 async def _backend_get_ai_slots_impl(request: Request, game_id: str):
     """Implementation for getting AI slots."""
-    actor = get_actor_handle(request)
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        # Re-raise HTTPException (includes 503 for Ray unavailable)
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
     ai_slots = await actor.get_available_ai_slots.remote(game_id)
     return {"ai_slots": ai_slots}
 
 async def _backend_start_game_impl(request: Request, game_id: str, player_id: str = Body(..., embed=True)):
     """Implementation for starting a game."""
-    actor = get_actor_handle(request)
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        # Re-raise HTTPException (includes 503 for Ray unavailable)
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
     result = await actor.start_game.remote(game_id, player_id)
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
@@ -475,7 +631,15 @@ async def _backend_start_game_impl(request: Request, game_id: str, player_id: st
 
 async def _backend_get_game_state_impl(request: Request, game_id: str, player_id: Optional[str] = None):
     """Backend API: Get game state (sanitized for player if player_id provided). Accessible from *.oblivio-company.com"""
-    actor = get_actor_handle(request)
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        # Re-raise HTTPException (includes 503 for Ray unavailable)
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
     game = await actor.get_game.remote(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -507,6 +671,53 @@ async def _backend_get_game_state_impl(request: Request, game_id: str, player_id
         "ai_players": game.get('ai_players', []),
         "spectators": game.get('spectators', []),
     }
+
+async def _backend_auto_create_game_impl(
+    request: Request,
+    game_type: str,
+    game_mode: Optional[str] = None,
+    ai_count: int = 0,
+    player_id: Optional[str] = None
+):
+    """Backend API: Automatically create a new game and auto-join the player. Accessible from *.oblivio-company.com"""
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # Validate game_type
+    if game_type not in ["blackjack", "dominoes"]:
+        raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
+    
+    # Get or generate player_id
+    if not player_id:
+        player_id = await _get_or_generate_player_id(request)
+    
+    # Set default game_mode if not provided
+    if game_mode is None:
+        if game_type == "dominoes":
+            game_mode = "classic"
+        else:  # blackjack
+            game_mode = "best_of_5"
+    
+    # Clamp ai_count to valid range
+    ai_count = max(0, min(3, ai_count))
+    
+    # Create game
+    result = await actor.create_game.remote(
+        player_id=player_id,
+        game_type=game_type,
+        game_mode=game_mode,
+        ai_count=ai_count
+    )
+    
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
 
 # Register routes with both /game/... and /api/game/... paths for compatibility
 @backend_bp.post("/game/create")
@@ -568,6 +779,28 @@ async def backend_get_game_state(request: Request, game_id: str, player_id: Opti
 async def backend_get_game_state_api(request: Request, game_id: str, player_id: Optional[str] = None):
     """Backend API: Get game state (sanitized for player if player_id provided, with /api prefix). Accessible from *.oblivio-company.com"""
     return await _backend_get_game_state_impl(request, game_id, player_id)
+
+@backend_bp.get("/new/{game_type}")
+async def backend_auto_create_game(
+    request: Request,
+    game_type: str,
+    game_mode: Optional[str] = None,
+    ai_count: int = 0,
+    player_id: Optional[str] = None
+):
+    """Backend API: Automatically create a new game and auto-join the player. Accessible from *.oblivio-company.com"""
+    return await _backend_auto_create_game_impl(request, game_type, game_mode, ai_count, player_id)
+
+@backend_bp.get("/api/new/{game_type}")
+async def backend_auto_create_game_api(
+    request: Request,
+    game_type: str,
+    game_mode: Optional[str] = None,
+    ai_count: int = 0,
+    player_id: Optional[str] = None
+):
+    """Backend API: Automatically create a new game and auto-join the player (with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_auto_create_game_impl(request, game_type, game_mode, ai_count, player_id)
 
 
 # --- WebSocket Endpoint ---

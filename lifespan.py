@@ -155,9 +155,16 @@ async def lifespan(app: FastAPI):
                     object_store_memory=2_000_000_000
                 )
             
-            app.state.ray_is_available = True
+            # Verify Ray is actually initialized
+            if ray.is_initialized():
+                app.state.ray_is_available = True
+                logger.info("✔️ Ray initialized successfully and verified.")
+            else:
+                logger.error("❌ Ray init() returned without error but ray.is_initialized() is False")
+                app.state.ray_is_available = False
         except Exception as e:
             logger.error(f"❌ Failed to initialize Ray: {e}", exc_info=True)
+            logger.error(f"❌ Ray initialization error type: {type(e).__name__}")
             app.state.ray_is_available = False
     else:
         logger.warning("⚠️ Ray library not found. Ray integration is disabled.")
