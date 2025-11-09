@@ -679,6 +679,17 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
                         await websocket.send_json({"type": "error", "message": result['error']})
                         continue
                     
+                    # Check if all players are ready and auto-start next round/hand
+                    auto_started = False
+                    if result.get('all_ready_for_next_round'):
+                        logger.info(f"All players ready for next round, auto-starting immediately")
+                        await actor.start_next_round.remote(game_id)
+                        auto_started = True
+                    elif result.get('all_ready_for_next_hand'):
+                        logger.info(f"All players ready for next hand, auto-starting immediately")
+                        await actor.start_next_hand.remote(game_id)
+                        auto_started = True
+                    
                     # Broadcast updated state
                     updated_game = await actor.get_game.remote(game_id)
                     players_with_ai_status = []
@@ -799,10 +810,17 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
                     
                     # Process AI moves with state broadcasting
                     # This will handle AI moves and broadcast state updates
-                    try:
-                        await process_ai_moves_with_broadcast(actor, game_id, player_ids)
-                    except Exception as e:
-                        logger.error(f"Error in AI move processing: {e}", exc_info=True)
+                    # If we auto-started next round/hand, process AI moves immediately
+                    if auto_started:
+                        try:
+                            await process_ai_moves_with_broadcast(actor, game_id, player_ids)
+                        except Exception as e:
+                            logger.error(f"Error in AI move processing after auto-start: {e}", exc_info=True)
+                    else:
+                        try:
+                            await process_ai_moves_with_broadcast(actor, game_id, player_ids)
+                        except Exception as e:
+                            logger.error(f"Error in AI move processing: {e}", exc_info=True)
                         # Even if AI processing fails, broadcast current state
                         updated_game = await actor.get_game.remote(game_id)
                         if updated_game:

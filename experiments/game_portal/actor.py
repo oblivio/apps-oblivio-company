@@ -425,6 +425,14 @@ class ExperimentActor:
                         if ai_id in game["players"]:
                             new_state["ready_for_next_round"][ai_id] = True
                             logger.info(f"Auto-marked AI player {ai_id} as ready for next round")
+                    
+                    # Check if all players are ready (including AI)
+                    all_players = game.get("players", [])
+                    ready_players = new_state.get("ready_for_next_round", {})
+                    all_ready = len(ready_players) >= len(all_players)
+                    if all_ready:
+                        logger.info(f"All players ready for next round, will auto-start")
+                        return {"success": True, "all_ready_for_next_round": True}
                 elif new_state.get("status") == "hand_finished":
                     # Auto-ready AI players for next hand
                     if "ready_for_next_hand" not in new_state:
@@ -434,6 +442,14 @@ class ExperimentActor:
                         if ai_id in game["players"]:
                             new_state["ready_for_next_hand"][ai_id] = True
                             logger.info(f"Auto-marked AI player {ai_id} as ready for next hand")
+                    
+                    # Check if all players are ready (including AI)
+                    all_players = game.get("players", [])
+                    ready_players = new_state.get("ready_for_next_hand", {})
+                    all_ready = len(ready_players) >= len(all_players)
+                    if all_ready:
+                        logger.info(f"All players ready for next hand, will auto-start")
+                        return {"success": True, "all_ready_for_next_hand": True}
             
             return {"success": True}
         except ValueError as e:
