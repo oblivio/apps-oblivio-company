@@ -201,6 +201,9 @@ class ExperimentActor:
         
         game = self.games[game_id]
         
+        # Filter out placeholder players from the players list
+        game["players"] = [p for p in game["players"] if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
+        
         # Check if already in game
         if player_id in game["players"]:
             return {"error": "You are already in this game"}
@@ -214,7 +217,7 @@ class ExperimentActor:
             if len(game["players"]) >= max_players:
                 return {"error": "Game is full"}
             
-            # First, check if there's a placeholder player to replace
+            # First, check if there's a placeholder player to replace (legacy support)
             placeholder_to_replace = None
             for p in game["players"]:
                 if isinstance(p, str) and p.startswith("PLACEHOLDER_"):
@@ -237,7 +240,7 @@ class ExperimentActor:
                     "replaced_placeholder": placeholder_to_replace
                 }
             
-            # If there are AI players, replace the first one
+            # No placeholder, check if we should replace an AI player or just add
             ai_to_replace = None
             if self.ai_players.get(game_id):
                 ai_to_replace = self.ai_players[game_id][0]
@@ -248,20 +251,24 @@ class ExperimentActor:
                     self.ai_players[game_id].remove(ai_to_replace)
                     logger.info(f"Player {player_id} replaced AI {ai_to_replace} in game {game_id}")
                 else:
-                    # AI player not in players list (shouldn't happen, but handle gracefully)
-                    logger.warning(f"AI player {ai_to_replace} not found in players list for game {game_id}, adding player normally")
+                    # AI player not in players list, just add normally
                     game["players"].append(player_id)
                     logger.info(f"Player {player_id} joined game {game_id} (AI replacement skipped)")
             else:
+                # No AI to replace, just add the player
                 game["players"].append(player_id)
                 logger.info(f"Player {player_id} joined game {game_id}")
+            
+            # Set host_id if this is the first player
+            if game.get("host_id") is None:
+                game["host_id"] = player_id
             
             return {
                 "game_id": game_id,
                 "player_id": player_id,
                 "game_type": game["game_type"],
                 "game_mode": game["game_mode"],
-                "replaced_ai": ai_to_replace
+                "replaced_ai": ai_to_replace if ai_to_replace else None
             }
         
         # If game is in progress, handle mid-game joining
@@ -316,13 +323,16 @@ class ExperimentActor:
         return {"error": "Cannot join game in current state"}
 
     async def start_game(self, game_id: str, player_id: str) -> Dict[str, Any]:
-        """Start a game. Minimum players are already enforced via auto-fill."""
+        """Start a game. Auto-fills missing players with AI to meet minimum requirements."""
         self._check_ready()
         
         if game_id not in self.games:
             return {"error": "Game not found"}
         
         game = self.games[game_id]
+        
+        # Filter out placeholder players first (before any checks)
+        game["players"] = [p for p in game["players"] if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
         
         # Allow any player in the game to start (not just host)
         # This allows players joining from mycircles to start the game
@@ -333,27 +343,52 @@ class ExperimentActor:
             return {"error": "Game has already started"}
         
         min_players = game.get("min_players", self._get_min_players(game["game_type"], game["game_mode"]))
-        if len(game["players"]) < min_players:
-            return {"error": f"Need at least {min_players} players to start"}
+        max_players = game.get("max_players", self._get_max_players(game["game_type"]))
         
-        # Ensure we have minimum players (add AI if needed)
-        if len(game["players"]) < min_players:
-            ai_count = min_players - len(game["players"])
-            existing_ai_count = len(self.ai_players.get(game_id, []))
-            for i in range(ai_count):
+        # Auto-fill missing players with AI to meet minimum requirements
+        current_players = len(game["players"])
+        existing_ai_count = len(self.ai_players.get(game_id, []))
+        
+        if current_players < min_players:
+            # Calculate how many AI players we need
+            ai_needed = min_players - current_players
+            # Don't exceed max_players
+            total_after_ai = current_players + ai_needed
+            if total_after_ai > max_players:
+                ai_needed = max_players - current_players
+            
+            # Add AI players
+            for i in range(ai_needed):
                 ai_id = f"AI_{game_id}_{existing_ai_count + i}"
                 game["players"].append(ai_id)
                 if game_id not in self.ai_players:
                     self.ai_players[game_id] = []
                 self.ai_players[game_id].append(ai_id)
+                logger.info(f"Auto-filled player slot with AI: {ai_id}")
+        
+        # Ensure we have at least 1 player (the person starting)
+        if len(game["players"]) == 0:
+            return {"error": "Cannot start game with 0 players. At least 1 player is required."}
+        
+        # Update host_id if it was None (first player to start becomes host)
+        if game.get("host_id") is None and game["players"]:
+            game["host_id"] = game["players"][0]
+        
+        # Verify we have enough players after auto-fill (should always be true now)
+        if len(game["players"]) < min_players:
+            return {"error": f"Need at least {min_players} players to start (have {len(game['players'])})"}
         
         # Initialize game state
-        if game["game_type"] == "blackjack":
-            game_state = create_blackjack_game(game["players"], game["game_mode"])
-        elif game["game_type"] == "dominoes":
-            game_state = create_dominoes_game(game["players"], game["game_mode"])
-        else:
-            return {"error": f"Unknown game type: {game['game_type']}"}
+        try:
+            if game["game_type"] == "blackjack":
+                game_state = create_blackjack_game(game["players"], game["game_mode"])
+            elif game["game_type"] == "dominoes":
+                game_state = create_dominoes_game(game["players"], game["game_mode"])
+            else:
+                return {"error": f"Unknown game type: {game['game_type']}"}
+        except ValueError as e:
+            # Game creation functions validate player count
+            return {"error": f"Failed to create game: {str(e)}"}
         
         game["game_state"] = game_state
         game["status"] = "in_progress"
@@ -405,6 +440,9 @@ class ExperimentActor:
         game["ai_players"] = self.ai_players.get(game_id, [])
         game["spectators"] = self.spectators.get(game_id, [])
         
+        # Filter out placeholder players from the players list
+        game["players"] = [p for p in game.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
+        
         # Convert datetime objects to ISO format for serialization (Ray/FastAPI)
         return self._serialize_datetime(game)
     
@@ -439,6 +477,129 @@ class ExperimentActor:
         except Exception as e:
             logger.debug(f"Could not search database for waiting lobby: {e}")
             return None
+    
+    async def get_or_create_lobby(self, circle_id: str, game_type: str, game_mode: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get or create a persistent lobby for a circle and game type.
+        Lobbies always exist - can have 0-4 players. Missing players are auto-filled with AI when starting.
+        """
+        self._check_ready()
+        
+        # First, try to find existing waiting lobby
+        existing_lobby = self.find_waiting_lobby(circle_id, game_type)
+        if existing_lobby:
+            game_id = existing_lobby.get("game_id")
+            if game_id:
+                # Return existing lobby (filter out placeholders from players list)
+                result = existing_lobby.copy()
+                # Filter out placeholder players
+                result["players"] = [p for p in result.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
+                result["player_count"] = len(result["players"])
+                return result
+        
+        # No existing lobby found, create a new empty one
+        # Generate a stable game_id based on circle_id and game_type
+        import hashlib
+        lobby_key = f"{circle_id}_{game_type}"
+        lobby_hash = hashlib.sha256(lobby_key.encode()).hexdigest()[:6].upper()
+        game_id = f"LOBBY_{lobby_hash}"
+        
+        # If lobby already exists with this ID, check its status
+        if game_id in self.games:
+            existing_game = self.games[game_id]
+            if existing_game.get("status") == "waiting":
+                # Reuse waiting lobby
+                result = existing_game.copy()
+                result["ai_players"] = self.ai_players.get(game_id, [])
+                result["spectators"] = self.spectators.get(game_id, [])
+                # Filter out placeholder players
+                result["players"] = [p for p in result.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
+                result["player_count"] = len(result["players"])
+                return self._serialize_datetime(result)
+            elif existing_game.get("status") in ["finished", "in_progress", "round_finished", "hand_finished"]:
+                # Game is in progress or finished - reset lobby to waiting state for reuse
+                logger.info(f"Resetting finished/in-progress lobby {game_id} to waiting state")
+                existing_game["status"] = "waiting"
+                existing_game["game_state"] = None
+                existing_game["players"] = []  # Clear players - they need to rejoin
+                existing_game["host_id"] = None
+                self.ai_players[game_id] = []
+                self.spectators[game_id] = []
+                # Persist reset lobby
+                try:
+                    game_doc = existing_game.copy()
+                    game_doc["_id"] = game_id
+                    game_doc["ai_players"] = []
+                    game_doc["spectators"] = []
+                    if game_doc.get("created_at") and isinstance(game_doc["created_at"], datetime):
+                        game_doc["created_at"] = game_doc["created_at"].isoformat()
+                    await self.db.games.replace_one(
+                        {"_id": game_id},
+                        game_doc,
+                        upsert=True
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to persist reset lobby {game_id}: {e}")
+                # Return reset lobby
+                result = existing_game.copy()
+                result["ai_players"] = []
+                result["spectators"] = []
+                result["player_count"] = 0
+                return self._serialize_datetime(result)
+        
+        # Set default game_mode if not provided
+        if game_mode is None:
+            if game_type == "dominoes":
+                game_mode = "classic"
+            else:  # blackjack
+                game_mode = "best_of_5"
+        
+        min_players = self._get_min_players(game_type, game_mode)
+        max_players = self._get_max_players(game_type)
+        
+        # Create empty lobby (0 players initially)
+        game = {
+            "game_id": game_id,
+            "host_id": None,  # No host until first player joins
+            "game_type": game_type,
+            "game_mode": game_mode,
+            "players": [],  # Empty lobby - can have 0-4 players
+            "status": "waiting",
+            "game_state": None,
+            "created_at": datetime.utcnow(),
+            "min_players": min_players,
+            "max_players": max_players,
+            "metadata": {"circle_id": circle_id}
+        }
+        
+        self.games[game_id] = game
+        self.ai_players[game_id] = []  # No AI initially
+        self.spectators[game_id] = []
+        
+        # Persist lobby to database
+        try:
+            game_doc = game.copy()
+            game_doc["_id"] = game_id
+            game_doc["ai_players"] = []
+            game_doc["spectators"] = []
+            if game_doc.get("created_at"):
+                game_doc["created_at"] = game_doc["created_at"].isoformat()
+            await self.db.games.replace_one(
+                {"_id": game_id},
+                game_doc,
+                upsert=True
+            )
+            logger.debug(f"Persisted lobby {game_id} to database")
+        except Exception as e:
+            logger.warning(f"Failed to persist lobby {game_id} to database: {e}")
+        
+        logger.info(f"Created/retrieved lobby {game_id} for circle {circle_id} ({game_type}, {game_mode}) with {len(game['players'])} players")
+        
+        result = game.copy()
+        result["ai_players"] = []
+        result["spectators"] = []
+        result["player_count"] = 0
+        return self._serialize_datetime(result)
     
     def get_available_ai_slots(self, game_id: str) -> List[str]:
         """Get list of AI players that can be replaced."""

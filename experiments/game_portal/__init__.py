@@ -903,9 +903,8 @@ async def _backend_lobby_create_or_join_impl(
     player_id: str
 ):
     """
-    Backend API: Create or join a lobby for a circle and game type.
-    If a waiting lobby exists for this circle/game type, join it.
-    Otherwise, create a new one.
+    Backend API: Get or create a persistent lobby for a circle and game type.
+    Lobbies always exist - can have 0-4 players. Missing players are auto-filled with AI when starting.
     Accessible from *.oblivio-company.com
     """
     try:
@@ -920,111 +919,59 @@ async def _backend_lobby_create_or_join_impl(
     if game_type not in ["blackjack", "dominoes"]:
         raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
     
-    # Try to find existing waiting lobby for this circle/game type
-    existing_lobby = await actor.find_waiting_lobby.remote(circle_id, game_type)
+    # Get or create persistent lobby (always exists, can have 0-4 players)
+    lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
     
-    if existing_lobby:
-        # Join existing lobby
-        game_id = existing_lobby.get("game_id")
-        if not game_id:
-            raise HTTPException(status_code=500, detail="Invalid lobby data")
-        
-        # Join the game
-        join_result = await actor.join_game.remote(
-            game_id,
-            player_id,
-            replace_ai=None,
-            as_spectator=False
-        )
-        
-        if join_result.get("error"):
-            # If join failed (e.g., game is full), create a new one
-            logger.info(f"Failed to join existing lobby {game_id}: {join_result.get('error')}, creating new lobby")
-        else:
-            # Successfully joined existing lobby
-            # Notify lobby via WebSocket
-            await broadcast_to_game(game_id, {
-                "type": "player_joined",
-                "player_id": player_id,
-                "role": join_result.get("role", "player"),
-                "replaced_ai": join_result.get("replaced_ai"),
-                "replaced_placeholder": join_result.get("replaced_placeholder")
-            })
+    game_id = lobby.get("game_id")
+    if not game_id:
+        raise HTTPException(status_code=500, detail="Failed to get or create lobby")
+    
+    # If player_id is provided, join the lobby (if not already in it)
+    action = "retrieved"  # Default action
+    if player_id:
+        # Check if player is already in the lobby
+        current_players = lobby.get("players", [])
+        if player_id not in current_players:
+            # Join the lobby
+            join_result = await actor.join_game.remote(
+                game_id,
+                player_id,
+                replace_ai=None,
+                as_spectator=False
+            )
             
-            # Return lobby info with join result
-            return {
-                "game_id": game_id,
-                "player_id": player_id,
-                "game_type": game_type,
-                "game_mode": existing_lobby.get("game_mode"),
-                "action": "joined",
-                "players": existing_lobby.get("players", []),
-                "ai_players": existing_lobby.get("ai_players", []),
-                "player_count": len(existing_lobby.get("players", [])),
-                "status": existing_lobby.get("status", "waiting")
-            }
+            if join_result.get("error"):
+                # If join failed (e.g., game is full), still return lobby info
+                logger.warning(f"Failed to join lobby {game_id}: {join_result.get('error')}")
+            else:
+                # Successfully joined lobby
+                action = "joined"
+                # Notify lobby via WebSocket
+                await broadcast_to_game(game_id, {
+                    "type": "player_joined",
+                    "player_id": player_id,
+                    "role": join_result.get("role", "player"),
+                    "replaced_ai": join_result.get("replaced_ai")
+                })
     
-    # No existing lobby found, create a new one
-    # Create a placeholder player_id that will be replaced by the frontend
-    import secrets
-    placeholder_player_id = f"PLACEHOLDER_{secrets.token_hex(8)}"
+    # Get updated lobby info
+    updated_lobby = await actor.get_game.remote(game_id)
+    if not updated_lobby:
+        raise HTTPException(status_code=500, detail="Failed to retrieve lobby")
     
-    # Set default game_mode based on game_type
-    if game_type == "dominoes":
-        game_mode = "classic"
-    else:  # blackjack
-        game_mode = "best_of_5"
-    
-    # Create game with placeholder player and circle metadata
-    result = await actor.create_game.remote(
-        player_id=placeholder_player_id,
-        game_type=game_type,
-        game_mode=game_mode,
-        ai_count=0,  # Start with no AI, let users configure in Game Portal
-        metadata={"circle_id": circle_id}
-    )
-    
-    if result.get("error"):
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    game_id = result.get("game_id")
-    
-    # Now join with the real player_id (replacing placeholder)
-    join_result = await actor.join_game.remote(
-        game_id,
-        player_id,
-        replace_ai=None,
-        as_spectator=False
-    )
-    
-    if join_result.get("error"):
-        # If join failed, still return the created game
-        logger.warning(f"Failed to join newly created game {game_id}: {join_result.get('error')}")
-    else:
-        # Notify lobby via WebSocket
-        await broadcast_to_game(game_id, {
-            "type": "player_joined",
-            "player_id": player_id,
-            "role": join_result.get("role", "player"),
-            "replaced_ai": join_result.get("replaced_ai"),
-            "replaced_placeholder": join_result.get("replaced_placeholder")
-        })
-    
-    # Get updated game info
-    game = await actor.get_game.remote(game_id)
-    if not game:
-        raise HTTPException(status_code=500, detail="Failed to retrieve created game")
+    # Filter out placeholder players from response
+    players = [p for p in updated_lobby.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
     
     return {
         "game_id": game_id,
-        "player_id": player_id,
+        "player_id": player_id if player_id else None,
         "game_type": game_type,
-        "game_mode": game.get("game_mode"),
-        "action": "created",
-        "players": game.get("players", []),
-        "ai_players": game.get("ai_players", []),
-        "player_count": len(game.get("players", [])),
-        "status": game.get("status", "waiting")
+        "game_mode": updated_lobby.get("game_mode"),
+        "action": action,
+        "players": players,
+        "ai_players": updated_lobby.get("ai_players", []),
+        "player_count": len(players),
+        "status": updated_lobby.get("status", "waiting")
     }
 
 # Register routes with both /game/... and /api/game/... paths for compatibility
@@ -1121,14 +1068,104 @@ async def backend_poll_game_updates_api(request: Request, game_id: str, last_upd
     return await _backend_poll_game_updates_impl(request, game_id, last_update)
 
 @backend_bp.post("/lobby/{circle_id}/{game_type}")
-async def backend_lobby_create_or_join(request: Request, circle_id: str, game_type: str, player_id: str = Body(..., embed=True)):
-    """Backend API: Create or join a lobby for a circle and game type. Accessible from *.oblivio-company.com"""
-    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id)
+async def backend_lobby_create_or_join(request: Request, circle_id: str, game_type: str, player_id: Optional[str] = Body(None, embed=True)):
+    """
+    Backend API: Get or create a persistent lobby for a circle and game type.
+    Lobbies always exist - can have 0-4 players. Missing players are auto-filled with AI when starting.
+    Accessible from *.oblivio-company.com
+    """
+    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id or "")
+
+@backend_bp.get("/lobby/{circle_id}/{game_type}")
+async def backend_lobby_get(request: Request, circle_id: str, game_type: str):
+    """
+    Backend API: Get a persistent lobby for a circle and game type (without joining).
+    Returns lobby state even if it has 0 players.
+    Accessible from *.oblivio-company.com
+    """
+    try:
+        actor = get_backend_actor_handle(request)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # Validate game_type
+    if game_type not in ["blackjack", "dominoes"]:
+        raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
+    
+    # Get or create persistent lobby
+    lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
+    
+    game_id = lobby.get("game_id")
+    if not game_id:
+        raise HTTPException(status_code=500, detail="Failed to get or create lobby")
+    
+    # Filter out placeholder players from response
+    players = [p for p in lobby.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
+    
+    return {
+        "game_id": game_id,
+        "game_type": game_type,
+        "game_mode": lobby.get("game_mode"),
+        "players": players,
+        "ai_players": lobby.get("ai_players", []),
+        "player_count": len(players),
+        "status": lobby.get("status", "waiting"),
+        "min_players": lobby.get("min_players"),
+        "max_players": lobby.get("max_players")
+    }
 
 @backend_bp.post("/api/lobby/{circle_id}/{game_type}")
-async def backend_lobby_create_or_join_api(request: Request, circle_id: str, game_type: str, player_id: str = Body(..., embed=True)):
-    """Backend API: Create or join a lobby for a circle and game type (with /api prefix). Accessible from *.oblivio-company.com"""
-    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id)
+async def backend_lobby_create_or_join_api(request: Request, circle_id: str, game_type: str, player_id: Optional[str] = Body(None, embed=True)):
+    """
+    Backend API: Get or create a persistent lobby for a circle and game type (with /api prefix).
+    Lobbies always exist - can have 0-4 players. Missing players are auto-filled with AI when starting.
+    Accessible from *.oblivio-company.com
+    """
+    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id or "")
+
+@backend_bp.get("/api/lobby/{circle_id}/{game_type}")
+async def backend_lobby_get_api(request: Request, circle_id: str, game_type: str):
+    """
+    Backend API: Get a persistent lobby for a circle and game type (without joining, with /api prefix).
+    Returns lobby state even if it has 0 players.
+    Accessible from *.oblivio-company.com
+    """
+    try:
+        actor = get_backend_actor_handle(request)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # Validate game_type
+    if game_type not in ["blackjack", "dominoes"]:
+        raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
+    
+    # Get or create persistent lobby
+    lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
+    
+    game_id = lobby.get("game_id")
+    if not game_id:
+        raise HTTPException(status_code=500, detail="Failed to get or create lobby")
+    
+    # Filter out placeholder players from response
+    players = [p for p in lobby.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
+    
+    return {
+        "game_id": game_id,
+        "game_type": game_type,
+        "game_mode": lobby.get("game_mode"),
+        "players": players,
+        "ai_players": lobby.get("ai_players", []),
+        "player_count": len(players),
+        "status": lobby.get("status", "waiting"),
+        "min_players": lobby.get("min_players"),
+        "max_players": lobby.get("max_players")
+    }
 
 
 # --- WebSocket Endpoint ---
