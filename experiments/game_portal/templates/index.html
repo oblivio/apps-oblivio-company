@@ -1118,8 +1118,11 @@
         // Check for URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const gameId = urlParams.get('game');
+        const gameType = urlParams.get('game_type'); // Optional: for creating game if it doesn't exist
+        const gameMode = urlParams.get('game_mode') || 'classic'; // Optional: game mode
+        const aiCount = parseInt(urlParams.get('ai_count')) || 2; // Optional: AI count (default 2)
         
-        console.log('Auto-join check:', { gameId });
+        console.log('Auto-join check:', { gameId, gameType, gameMode, aiCount });
         
         // Only activate if game parameter is present (ignore player_id parameter)
         if (!gameId) {
@@ -1238,15 +1241,16 @@
                     
                     console.log('Auto-join: Checking game status', { gameId: gameId.toUpperCase(), playerId: finalPlayerId });
                     
-                    // First, check if player is already in the game (game was created from myCircles)
-                    // Try to get game info to see if player is already in it
+                    // First, check if game exists
+                    let gameExists = false;
                     let alreadyInGame = false;
                     let joinSuccess = false;
                     
                     try {
-                        console.log('Auto-join: Checking if player is already in game...');
+                        console.log('Auto-join: Checking if game exists...');
                         const gameInfoResponse = await fetch(`${basePath}/api/game/${gameId.toUpperCase()}`);
                         if (gameInfoResponse.ok) {
+                            gameExists = true;
                             const gameInfo = await gameInfoResponse.json();
                             const players = gameInfo.players || [];
                             // Check if player_id is in the players list
@@ -1254,16 +1258,97 @@
                                 const pid = typeof p === 'object' ? (p.player_id || p) : p;
                                 return pid === finalPlayerId;
                             });
-                            console.log('Auto-join: Player already in game?', alreadyInGame, { players, playerId: finalPlayerId });
+                            console.log('Auto-join: Game exists, player already in game?', alreadyInGame, { players, playerId: finalPlayerId });
+                        } else if (gameInfoResponse.status === 404) {
+                            // Game doesn't exist
+                            gameExists = false;
+                            console.log('Auto-join: Game does not exist, will create if game_type provided');
                         } else {
                             console.warn('Auto-join: Could not get game info', gameInfoResponse.status);
                         }
                     } catch (e) {
                         console.warn('Auto-join: Error checking game info', e);
+                        // Assume game doesn't exist if we can't check
+                        gameExists = false;
                     }
                     
-                    // Only call join API if player is not already in the game
-                    if (!alreadyInGame) {
+                    // If game doesn't exist and game_type is provided, create it
+                    if (!gameExists && gameType) {
+                        console.log('Auto-join: Game does not exist, creating new game', { gameId: gameId.toUpperCase(), gameType, gameMode, aiCount });
+                        try {
+                            const createResponse = await fetch(`${basePath}/api/game/create`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    player_id: finalPlayerId,
+                                    game_type: gameType,
+                                    game_mode: gameMode,
+                                    ai_count: aiCount
+                                })
+                            });
+                            
+                            const createData = await createResponse.json();
+                            console.log('Auto-join: Create API response', { status: createResponse.status, data: createData });
+                            
+                            if (createResponse.ok && createData.game_id) {
+                                // Game created successfully
+                                // Note: The created game_id might be different from the requested one
+                                // But we'll use the created one
+                                const actualGameId = createData.game_id;
+                                console.log('Auto-join: Game created successfully', { actualGameId, requestedGameId: gameId.toUpperCase() });
+                                
+                                // Update URL if game ID is different
+                                if (actualGameId !== gameId.toUpperCase()) {
+                                    const newUrl = new URL(window.location);
+                                    newUrl.searchParams.set('game', actualGameId);
+                                    window.history.replaceState({}, '', newUrl);
+                                    console.log('Auto-join: Updated URL with actual game ID', actualGameId);
+                                }
+                                
+                                // Store the actual game ID
+                                window.autoJoinGameId = actualGameId;
+                                window.autoJoinPlayerId = finalPlayerId;
+                                joinSuccess = true;
+                                console.log('Auto-join: Stored game info after creation', { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId });
+                                
+                                // No need to join - we're already the host
+                                return; // Exit early, app.js will handle WebSocket connection
+                            } else {
+                                // Create failed
+                                const errorMsg = createData.error || createData.detail || 'Unknown error';
+                                console.error('Auto-join: Create failed', errorMsg);
+                                if (loadingDiv) loadingDiv.remove();
+                                if (lobbyView) {
+                                    lobbyView.style.display = 'block';
+                                    lobbyView.classList.remove('hidden');
+                                }
+                                alert(`❌ Could not create game: ${errorMsg || 'Unknown error'}`);
+                                return;
+                            }
+                        } catch (createErr) {
+                            console.error('Auto-join: Create API fetch error', createErr);
+                            if (loadingDiv) loadingDiv.remove();
+                            if (lobbyView) {
+                                lobbyView.style.display = 'block';
+                                lobbyView.classList.remove('hidden');
+                            }
+                            alert('❌ Could not create game. Please check your connection and try again.');
+                            return;
+                        }
+                    } else if (!gameExists && !gameType) {
+                        // Game doesn't exist and no game_type provided - can't create
+                        console.error('Auto-join: Game does not exist and no game_type provided');
+                        if (loadingDiv) loadingDiv.remove();
+                        if (lobbyView) {
+                            lobbyView.style.display = 'block';
+                            lobbyView.classList.remove('hidden');
+                        }
+                        alert(`❌ Game ${gameId.toUpperCase()} does not exist. Please provide game_type parameter to create it.`);
+                        return;
+                    }
+                    
+                    // Game exists - try to join
+                    if (gameExists && !alreadyInGame) {
                         console.log('Auto-join: Player not in game, calling join API', { gameId: gameId.toUpperCase(), playerId: finalPlayerId });
                         
                         try {
@@ -1310,7 +1395,7 @@
                             console.log('Auto-join: Fetch error, but proceeding to connect anyway...');
                             alreadyInGame = true; // Assume already in game if fetch fails
                         }
-                    } else {
+                    } else if (gameExists && alreadyInGame) {
                         console.log('Auto-join: Player already in game, skipping join API');
                         joinSuccess = true; // Already in game, so we're good
                     }
