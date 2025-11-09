@@ -187,6 +187,29 @@ class ExperimentActor:
             if len(game["players"]) >= max_players:
                 return {"error": "Game is full"}
             
+            # First, check if there's a placeholder player to replace
+            placeholder_to_replace = None
+            for p in game["players"]:
+                if isinstance(p, str) and p.startswith("PLACEHOLDER_"):
+                    placeholder_to_replace = p
+                    break
+            
+            if placeholder_to_replace:
+                # Replace the placeholder player
+                placeholder_index = game["players"].index(placeholder_to_replace)
+                game["players"][placeholder_index] = player_id
+                # Also update host_id if the placeholder was the host
+                if game.get("host_id") == placeholder_to_replace:
+                    game["host_id"] = player_id
+                logger.info(f"Player {player_id} replaced placeholder {placeholder_to_replace} in game {game_id}")
+                return {
+                    "game_id": game_id,
+                    "player_id": player_id,
+                    "game_type": game["game_type"],
+                    "game_mode": game["game_mode"],
+                    "replaced_placeholder": placeholder_to_replace
+                }
+            
             # If there are AI players, replace the first one
             ai_to_replace = None
             if self.ai_players.get(game_id):

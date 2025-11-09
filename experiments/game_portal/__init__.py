@@ -459,13 +459,13 @@ async def auto_create_game(
     Query parameters:
     - game_mode: Optional game mode (e.g., 'classic', 'boricua' for dominoes; 'best_of_5', 'best_of_10' for blackjack)
     - ai_count: Number of AI players to add (0-3, defaults to 0)
+    
+    NOTE: The game is created with a placeholder player_id. The frontend will replace this
+    with the browser fingerprint when the user joins.
     """
     # Validate game_type
     if game_type not in ["blackjack", "dominoes"]:
         raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
-    
-    # Get or generate player_id
-    player_id = await _get_or_generate_player_id(request)
     
     # Get actor handle
     actor = get_actor_handle(request)
@@ -480,10 +480,15 @@ async def auto_create_game(
     # Clamp ai_count to valid range
     ai_count = max(0, min(3, ai_count))
     
-    # Create game
+    # Create a placeholder player_id that will be replaced by the frontend
+    # Use a special prefix so the frontend knows to replace it
+    import secrets
+    placeholder_player_id = f"PLACEHOLDER_{secrets.token_hex(8)}"
+    
+    # Create game with placeholder player
     try:
         result = await actor.create_game.remote(
-            player_id=player_id,
+            player_id=placeholder_player_id,
             game_type=game_type,
             game_mode=game_mode,
             ai_count=ai_count
@@ -496,17 +501,15 @@ async def auto_create_game(
         if not game_id:
             raise HTTPException(status_code=500, detail="Failed to create game")
         
-        # Auto-join the player (they're already the host, but ensure they're in the game)
-        # The create_game already adds the player, so we just need to redirect
-        
-        # Redirect to the game lobby with the game_id
+        # Redirect to the game lobby - DON'T pass player_id in URL
+        # The frontend will join using browser fingerprint and replace the placeholder
         from fastapi.responses import RedirectResponse
         # Get the base path by removing /new/{game_type} from the path
         base_path = request.url.path.rsplit("/new/", 1)[0]
         if not base_path:
             base_path = "/"
-        # Use relative URL for redirect
-        redirect_url = f"{base_path}?game={game_id}&player_id={player_id}"
+        # Redirect without player_id - frontend will handle joining with browser fingerprint
+        redirect_url = f"{base_path}?game={game_id}&replace_placeholder=true"
         return RedirectResponse(url=redirect_url, status_code=302)
         
     except HTTPException:

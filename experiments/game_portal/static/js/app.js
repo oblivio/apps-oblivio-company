@@ -1782,8 +1782,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(window.location.search);
         const gameId = urlParams.get('game');
         const playerIdFromUrl = urlParams.get('player_id');
+        const replacePlaceholder = urlParams.get('replace_placeholder') === 'true';
         
-        console.log('checkUrlForGame:', { gameId, playerIdFromUrl, autoJoinGameId: window.autoJoinGameId, autoJoinPlayerId: window.autoJoinPlayerId });
+        console.log('checkUrlForGame:', { gameId, playerIdFromUrl, replacePlaceholder, autoJoinGameId: window.autoJoinGameId, autoJoinPlayerId: window.autoJoinPlayerId });
         
         // Check if auto-join script already joined
         if (window.autoJoinGameId && window.autoJoinPlayerId) {
@@ -1805,6 +1806,72 @@ document.addEventListener('DOMContentLoaded', () => {
         // This can happen if app.js loads before auto-join script completes
         if (gameId) {
             console.log('URL has game parameter, waiting for auto-join...');
+            
+            // If replace_placeholder is true, we need to replace the placeholder player
+            if (replacePlaceholder) {
+                console.log('Replace placeholder detected, joining with browser fingerprint...');
+                setTimeout(async () => {
+                    if (!browserFingerprint) {
+                        browserFingerprint = await generateFingerprint();
+                    }
+                    // Join the game with browser fingerprint, which will replace the placeholder
+                    try {
+                        const response = await fetch(`${basePath}/api/game/${gameId}`, {
+                            method: 'GET'
+                        });
+                        const gameData = await response.json();
+                        
+                        // Find placeholder player
+                        const placeholderPlayer = gameData.players?.find(p => {
+                            const pid = typeof p === 'string' ? p : p.player_id || p;
+                            return pid && pid.startsWith('PLACEHOLDER_');
+                        });
+                        
+                        if (placeholderPlayer) {
+                            const placeholderId = typeof placeholderPlayer === 'string' ? placeholderPlayer : placeholderPlayer.player_id || placeholderPlayer;
+                            console.log('Found placeholder player, replacing with browser fingerprint:', placeholderId);
+                            
+                            // Join the game, which should replace the placeholder
+                            const joinResponse = await fetch(`${basePath}/api/game/${gameId}/join`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    player_id: browserFingerprint
+                                })
+                            });
+                            const joinData = await joinResponse.json();
+                            
+                            if (joinResponse.ok) {
+                                console.log('Successfully replaced placeholder, connecting WebSocket...');
+                                connectWebSocket(gameId, browserFingerprint);
+                            } else {
+                                console.error('Failed to replace placeholder:', joinData);
+                                // Fallback: try to connect anyway
+                                connectWebSocket(gameId, browserFingerprint);
+                            }
+                        } else {
+                            // No placeholder found, just join normally
+                            console.log('No placeholder found, joining normally...');
+                            const joinResponse = await fetch(`${basePath}/api/game/${gameId}/join`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    player_id: browserFingerprint
+                                })
+                            });
+                            const joinData = await joinResponse.json();
+                            if (joinResponse.ok) {
+                                connectWebSocket(gameId, browserFingerprint);
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error replacing placeholder:', err);
+                        // Fallback: try to connect anyway
+                        connectWebSocket(gameId, browserFingerprint);
+                    }
+                }, 100);
+                return;
+            }
             
             // If player_id is in URL, use it directly (from auto-create endpoint)
             if (playerIdFromUrl) {
