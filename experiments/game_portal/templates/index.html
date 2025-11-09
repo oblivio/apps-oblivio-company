@@ -1109,6 +1109,137 @@
         crossorigin="anonymous">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+    
+    <!-- Auto-join script for Game Portal -->
+    <script>
+    // Auto-join functionality - activates when URL has ?game=GAMEID&player_id=PLAYERID
+    (function() {
+        // Check for URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('game');
+        const playerId = urlParams.get('player_id');
+        
+        console.log('Auto-join check:', { gameId, playerId });
+        
+        // Only activate if both parameters are present
+        if (!gameId || !playerId) {
+            console.log('Auto-join: Missing parameters, skipping');
+            return; // No auto-join, let normal flow proceed
+        }
+        
+        console.log('Auto-join: Both parameters found, initializing...');
+        
+        // Get base path from current URL
+        const currentPath = window.location.pathname;
+        let basePath = '/experiments/game_portal';
+        if (currentPath.includes('/experiments/game_portal')) {
+            const pathParts = currentPath.split('/experiments/game_portal');
+            basePath = pathParts[0] + '/experiments/game_portal';
+        }
+        
+        // Wait for DOM to be ready
+        function initAutoJoin() {
+            console.log('Auto-join: initAutoJoin called');
+            
+            // Hide create/join forms
+            const lobbyView = document.getElementById('lobby-view');
+            if (lobbyView) {
+                console.log('Auto-join: Hiding lobby view');
+                lobbyView.style.display = 'none';
+                lobbyView.classList.add('hidden');
+            } else {
+                console.warn('Auto-join: lobby-view element not found');
+            }
+            
+            // Also hide the game view initially (it will be shown when WebSocket connects)
+            const gameView = document.getElementById('game-view');
+            if (gameView) {
+                gameView.classList.add('hidden');
+            }
+            
+            // Show loading spinner
+            const container = document.querySelector('.container');
+            let loadingDiv = document.getElementById('auto-join-loading');
+            if (!loadingDiv && container) {
+                loadingDiv = document.createElement('div');
+                loadingDiv.id = 'auto-join-loading';
+                loadingDiv.style.cssText = `
+                    text-align: center;
+                    padding: 3rem;
+                    color: #1a1a2e;
+                `;
+                loadingDiv.innerHTML = `
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">⏳</div>
+                    <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Joining game...</div>
+                    <div style="font-size: 1rem; color: #718096;">Game ID: ${gameId.toUpperCase()}</div>
+                `;
+                container.insertBefore(loadingDiv, container.firstChild);
+                console.log('Auto-join: Loading spinner shown');
+            }
+            
+            // Start async join process
+            (async function() {
+                try {
+                    // Use the provided player_id from URL parameter
+                    let finalPlayerId = playerId;
+                    
+                    console.log('Auto-join: Calling join API', { gameId: gameId.toUpperCase(), playerId: finalPlayerId });
+                    
+                    // Call join API
+                    const joinResponse = await fetch(`${basePath}/api/game/${gameId.toUpperCase()}/join`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            player_id: finalPlayerId,
+                            replace_ai: null,
+                            as_spectator: false
+                        })
+                    });
+                    
+                    const joinData = await joinResponse.json();
+                    console.log('Auto-join: Join API response', joinData);
+                    
+                    if (!joinResponse.ok || joinData.error) {
+                        // Show error and restore lobby
+                        if (loadingDiv) loadingDiv.remove();
+                        if (lobbyView) {
+                            lobbyView.style.display = 'block';
+                            lobbyView.classList.remove('hidden');
+                        }
+                        alert(`❌ Could not join game: ${joinData.error || joinData.detail || 'Unknown error'}`);
+                        return;
+                    }
+                    
+                    // Store game info for app.js to use
+                    window.autoJoinGameId = gameId.toUpperCase();
+                    window.autoJoinPlayerId = finalPlayerId;
+                    console.log('Auto-join: Stored game info', { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId });
+                    
+                    // Wait for app.js to load and handle the WebSocket connection
+                    // The existing connectWebSocket() function will be called when app.js loads
+                    
+                } catch (err) {
+                    console.error('Auto-join error:', err);
+                    if (loadingDiv) loadingDiv.remove();
+                    if (lobbyView) {
+                        lobbyView.style.display = 'block';
+                        lobbyView.classList.remove('hidden');
+                    }
+                    alert('❌ Could not join game. Please check your connection and try again.');
+                }
+            })();
+        }
+        
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAutoJoin);
+        } else {
+            // DOM already ready, but wait a bit to ensure all elements are rendered
+            setTimeout(initAutoJoin, 100);
+        }
+    })();
+    </script>
+    
     <script src="/experiments/game_portal/static/js/app.js?v=2"></script>
 </body>
 </html>

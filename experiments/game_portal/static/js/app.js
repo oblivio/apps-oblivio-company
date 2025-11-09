@@ -200,10 +200,25 @@ document.addEventListener('DOMContentLoaded', () => {
         localGameId = gameId;
         localPlayerId = playerId;
         
+        // Check if auto-join script already created a WebSocket
+        if (window.gameWebSocket && window.gameWebSocket.readyState === WebSocket.OPEN) {
+            console.log('Using existing WebSocket from auto-join');
+            socket = window.gameWebSocket;
+            // Set up handlers if not already set
+            if (!socket.onmessage || socket.onmessage.toString().includes('Auto-join')) {
+                setupWebSocketHandlers(socket, gameId, playerId);
+            }
+            return;
+        }
+        
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${wsProtocol}//${window.location.host}${basePath}/ws/game/${gameId}/${playerId}`;
         
         socket = new WebSocket(wsUrl);
+        setupWebSocketHandlers(socket, gameId, playerId);
+    }
+    
+    function setupWebSocketHandlers(ws, gameId, playerId) {
         gameIdDisplay.textContent = gameId;
         
         const playerIdenticonSvg = document.getElementById('player-identicon-display');
@@ -253,10 +268,14 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
         
-        socket.onopen = () => {
+        ws.onopen = () => {
             console.log('WebSocket connected');
             lobbyView.classList.add('hidden');
             gameView.classList.remove('hidden');
+            
+            // Remove auto-join loading spinner if present
+            const loadingDiv = document.getElementById('auto-join-loading');
+            if (loadingDiv) loadingDiv.remove();
             
             // Clear any disconnect timeout
             if (disconnectTimeout) {
@@ -274,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
-        socket.onmessage = (event) => {
+        ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log('Message from server:', data);
             
@@ -396,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
-        socket.onclose = (event) => {
+        ws.onclose = (event) => {
             console.log('WebSocket disconnected', event);
             
             // Save disconnect time to localStorage
@@ -431,16 +450,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
-        socket.onerror = (error) => {
+        ws.onerror = (error) => {
             console.error('WebSocket error:', error);
             // Show error to user if connection fails
-            if (!socket || socket.readyState !== WebSocket.OPEN) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
                 alert('❌ Failed to connect to game. Please check your connection and try again.');
                 // Switch back to lobby if connection fails
                 lobbyView.classList.remove('hidden');
                 gameView.classList.add('hidden');
             }
         };
+        
+        // Update global socket reference
+        socket = ws;
     }
     
     // --- API Call Functions ---
@@ -1749,6 +1771,63 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkUrlForGame() {
         const urlParams = new URLSearchParams(window.location.search);
         const gameId = urlParams.get('game');
+        const playerId = urlParams.get('player_id');
+        
+        console.log('checkUrlForGame:', { gameId, playerId, autoJoinGameId: window.autoJoinGameId, autoJoinPlayerId: window.autoJoinPlayerId });
+        
+        // Check if auto-join script already joined
+        if (window.autoJoinGameId && window.autoJoinPlayerId) {
+            console.log('Auto-join detected, connecting WebSocket...');
+            // Auto-join script has already called the join API
+            // Now we just need to connect the WebSocket
+            setTimeout(async () => {
+                if (!browserFingerprint) {
+                    browserFingerprint = await generateFingerprint();
+                }
+                // Use the player_id from auto-join (which may have been fingerprinted)
+                console.log('Connecting WebSocket with:', { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId });
+                connectWebSocket(window.autoJoinGameId, window.autoJoinPlayerId);
+            }, 100);
+            return;
+        }
+        
+        // Also check if URL has both parameters but auto-join hasn't run yet
+        // This can happen if app.js loads before auto-join script completes
+        if (gameId && playerId) {
+            console.log('URL has both parameters, waiting for auto-join...');
+            // Don't show lobby - auto-join should handle it
+            // Wait a bit for auto-join to complete
+            const checkAutoJoin = setInterval(() => {
+                if (window.autoJoinGameId && window.autoJoinPlayerId) {
+                    console.log('Auto-join completed, connecting WebSocket...');
+                    clearInterval(checkAutoJoin);
+                    if (!browserFingerprint) {
+                        generateFingerprint().then(() => {
+                            connectWebSocket(window.autoJoinGameId, window.autoJoinPlayerId);
+                        });
+                    } else {
+                        connectWebSocket(window.autoJoinGameId, window.autoJoinPlayerId);
+                    }
+                }
+            }, 100);
+            
+            // Stop checking after 5 seconds
+            setTimeout(() => {
+                clearInterval(checkAutoJoin);
+                if (!window.autoJoinGameId || !window.autoJoinPlayerId) {
+                    console.warn('Auto-join did not complete, showing lobby');
+                    // If auto-join failed, show lobby with pre-filled game ID
+                    if (gameIdInput) {
+                        gameIdInput.value = gameId.toUpperCase();
+                    }
+                    if (lobbyView) {
+                        lobbyView.style.display = 'block';
+                        lobbyView.classList.remove('hidden');
+                    }
+                }
+            }, 5000);
+            return; // Don't proceed with normal flow
+        }
         
         if (gameId) {
             // Pre-fill the game ID input but don't auto-join
