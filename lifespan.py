@@ -123,6 +123,8 @@ async def lifespan(app: FastAPI):
         RAY_CONNECTION_ADDRESS = os.getenv("RAY_ADDRESS")
         job_runtime_env: Dict[str, Any] = {"working_dir": str(BASE_DIR)}
         
+        logger.info(f"Ray library available. RAY_ADDRESS env var: {RAY_CONNECTION_ADDRESS or 'not set (will start local)'}")
+        
         if B2_ENABLED:
             job_runtime_env["env_vars"] = {
                 "AWS_ENDPOINT_URL": B2_ENDPOINT_URL or "",
@@ -135,36 +137,67 @@ async def lifespan(app: FastAPI):
             logger.info("Passing B2 credentials to Ray job runtime environment.")
         
         try:
-            if RAY_CONNECTION_ADDRESS:
-                logger.info(f"Connecting to Ray cluster (address='{RAY_CONNECTION_ADDRESS}', namespace='modular_labs')...")
-                ray.init(
-                    address=RAY_CONNECTION_ADDRESS,
-                    namespace="modular_labs",
-                    ignore_reinit_error=True,
-                    runtime_env=job_runtime_env,
-                    log_to_driver=False
-                )
+            # Check if Ray is already initialized (e.g., in shared mode)
+            if ray.is_initialized():
+                logger.info("Ray is already initialized (likely in shared mode). Verifying connection...")
+                try:
+                    # Try to get cluster status to verify connection
+                    cluster_resources = ray.cluster_resources()
+                    logger.info(f"Ray cluster resources: {cluster_resources}")
+                    app.state.ray_is_available = True
+                    logger.info("✔️ Ray already initialized and verified (shared mode).")
+                except Exception as verify_e:
+                    logger.warning(f"Ray is initialized but verification failed: {verify_e}. Attempting re-initialization...")
+                    # If verification fails, try to re-initialize
+                    try:
+                        ray.shutdown()
+                    except Exception:
+                        pass  # Ignore shutdown errors
             else:
-                logger.info("Starting a new LOCAL Ray cluster instance inside the container...")
-                ray.init(
-                    namespace="modular_labs",
-                    ignore_reinit_error=True,
-                    runtime_env=job_runtime_env,
-                    log_to_driver=False,
-                    num_cpus=2,
-                    object_store_memory=2_000_000_000
-                )
+                logger.info("Ray is not initialized. Starting initialization...")
+            
+            # Initialize Ray if not already initialized or if verification failed
+            if not ray.is_initialized():
+                if RAY_CONNECTION_ADDRESS:
+                    logger.info(f"Connecting to Ray cluster (address='{RAY_CONNECTION_ADDRESS}', namespace='modular_labs')...")
+                    ray.init(
+                        address=RAY_CONNECTION_ADDRESS,
+                        namespace="modular_labs",
+                        ignore_reinit_error=True,
+                        runtime_env=job_runtime_env,
+                        log_to_driver=False
+                    )
+                    logger.info(f"Ray init() called for cluster connection.")
+                else:
+                    logger.info("Starting a new LOCAL Ray cluster instance inside the container...")
+                    ray.init(
+                        namespace="modular_labs",
+                        ignore_reinit_error=True,
+                        runtime_env=job_runtime_env,
+                        log_to_driver=False,
+                        num_cpus=2,
+                        object_store_memory=2_000_000_000
+                    )
+                    logger.info("Ray init() called for local cluster.")
             
             # Verify Ray is actually initialized
             if ray.is_initialized():
-                app.state.ray_is_available = True
-                logger.info("✔️ Ray initialized successfully and verified.")
+                try:
+                    # Additional verification: try to get cluster resources
+                    cluster_resources = ray.cluster_resources()
+                    logger.info(f"Ray cluster resources: {cluster_resources}")
+                    app.state.ray_is_available = True
+                    logger.info("✔️ Ray initialized successfully and verified.")
+                except Exception as verify_e:
+                    logger.error(f"❌ Ray is initialized but cluster resources check failed: {verify_e}", exc_info=True)
+                    app.state.ray_is_available = False
             else:
                 logger.error("❌ Ray init() returned without error but ray.is_initialized() is False")
                 app.state.ray_is_available = False
         except Exception as e:
             logger.error(f"❌ Failed to initialize Ray: {e}", exc_info=True)
             logger.error(f"❌ Ray initialization error type: {type(e).__name__}")
+            logger.error(f"❌ Ray initialization error details: {str(e)}")
             app.state.ray_is_available = False
     else:
         logger.warning("⚠️ Ray library not found. Ray integration is disabled.")

@@ -34,11 +34,31 @@ active_connections: Dict[str, Dict[str, WebSocket]] = {}
 
 def get_actor_handle(request: Request) -> "ray.actor.ActorHandle":
     """FastAPI Dependency to get the Game Portal actor handle."""
-    if not getattr(request.app.state, "ray_is_available", False):
+    # Check if Ray is available in app state
+    ray_is_available = getattr(request.app.state, "ray_is_available", False)
+    
+    # Runtime check: verify Ray is actually initialized (in case it was initialized after startup)
+    if not ray_is_available:
+        # Double-check if Ray is actually initialized (might have been initialized after app startup)
+        try:
+            if ray.is_initialized():
+                logger.info("Ray is initialized but app.state.ray_is_available was False. Updating state...")
+                request.app.state.ray_is_available = True
+                ray_is_available = True
+        except Exception as e:
+            logger.debug(f"Could not check Ray initialization status: {e}")
+    
+    if not ray_is_available:
         logger.error("Ray is globally unavailable, blocking actor handle request.")
+        # Try to get more diagnostic info
+        try:
+            is_init = ray.is_initialized()
+            logger.error(f"Ray initialization check: is_initialized()={is_init}")
+        except Exception as diag_e:
+            logger.error(f"Could not check Ray status: {diag_e}")
         raise HTTPException(
             status_code=503,
-            detail="Ray service is unavailable. Check Ray cluster status."
+            detail="Ray service is unavailable. Check Ray cluster status and logs for initialization errors."
         )
     
     slug_id = getattr(request.state, "slug_id", None)
@@ -66,8 +86,28 @@ async def get_actor_handle_ws(websocket: WebSocket) -> "ray.actor.ActorHandle":
     if len(path_parts) >= 2 and path_parts[0] == "experiments":
         slug_id = path_parts[1]
     
-    if not getattr(websocket.app.state, "ray_is_available", False):
+    # Check if Ray is available in app state
+    ray_is_available = getattr(websocket.app.state, "ray_is_available", False)
+    
+    # Runtime check: verify Ray is actually initialized (in case it was initialized after startup)
+    if not ray_is_available:
+        # Double-check if Ray is actually initialized (might have been initialized after app startup)
+        try:
+            if ray.is_initialized():
+                logger.info("Ray is initialized but app.state.ray_is_available was False. Updating state...")
+                websocket.app.state.ray_is_available = True
+                ray_is_available = True
+        except Exception as e:
+            logger.debug(f"Could not check Ray initialization status: {e}")
+    
+    if not ray_is_available:
         logger.error("Ray is globally unavailable in WebSocket")
+        # Try to get more diagnostic info
+        try:
+            is_init = ray.is_initialized()
+            logger.error(f"Ray initialization check: is_initialized()={is_init}")
+        except Exception as diag_e:
+            logger.error(f"Could not check Ray status: {diag_e}")
         await websocket.close(code=503, reason="Service unavailable")
         return None
     
@@ -91,11 +131,31 @@ def get_backend_actor_handle(request: Request) -> "ray.actor.ActorHandle":
     slug_id = "game_portal"
     actor_name = f"{slug_id}-actor"
     
-    if not getattr(request.app.state, "ray_is_available", False):
+    # Check if Ray is available in app state
+    ray_is_available = getattr(request.app.state, "ray_is_available", False)
+    
+    # Runtime check: verify Ray is actually initialized (in case it was initialized after startup)
+    if not ray_is_available:
+        # Double-check if Ray is actually initialized (might have been initialized after app startup)
+        try:
+            if ray.is_initialized():
+                logger.info("Ray is initialized but app.state.ray_is_available was False. Updating state...")
+                request.app.state.ray_is_available = True
+                ray_is_available = True
+        except Exception as e:
+            logger.debug(f"Could not check Ray initialization status: {e}")
+    
+    if not ray_is_available:
         logger.error("Ray is globally unavailable in backend API")
+        # Try to get more diagnostic info
+        try:
+            is_init = ray.is_initialized()
+            logger.error(f"Ray initialization check: is_initialized()={is_init}")
+        except Exception as diag_e:
+            logger.error(f"Could not check Ray status: {diag_e}")
         raise HTTPException(
             status_code=503,
-            detail="Ray service is unavailable. Check Ray cluster status."
+            detail="Ray service is unavailable. Check Ray cluster status and logs for initialization errors."
         )
     
     try:
