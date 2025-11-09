@@ -780,9 +780,30 @@ async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_u
     
     # Build player list with AI status
     players_list = []
+    import re
     for p in game.get('players', []):
-        player_dict = p.copy() if isinstance(p, dict) else {"player_id": p}
-        pid = player_dict.get('player_id', player_dict)
+        # Handle both string and dict player formats
+        if isinstance(p, str):
+            pid = p
+        elif isinstance(p, dict):
+            pid = p.get('player_id', p.get('playerId', p.get('id')))
+            if not pid:
+                logger.warning(f"Invalid player dict format (no player_id): {p}")
+                continue
+        else:
+            logger.warning(f"Invalid player format (not string or dict): {p}")
+            continue
+        
+        # Filter out placeholder players
+        if pid and (pid.startswith('PLACEHOLDER_') or pid.startswith('placeholder_')):
+            logger.debug(f"Filtering out placeholder player: {pid}")
+            continue
+        
+        # Filter out suspicious player IDs (e.g., "player_8" pattern)
+        if pid and re.match(r'^player_\d+$', pid):
+            logger.warning(f"Filtering out suspicious player ID pattern: {pid}")
+            continue
+        
         is_ai = await actor.is_ai_player.remote(game_id, pid)
         players_list.append({
             "player_id": pid,
@@ -1334,8 +1355,33 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
     # Mark AI players and spectators
     players_with_ai_status = []
     for p in game.get('players', []):
-        player_dict = p.copy() if isinstance(p, dict) else {"player_id": p}
-        pid = player_dict.get('player_id', player_dict)
+        # Handle both string and dict player formats
+        if isinstance(p, str):
+            pid = p
+            player_dict = {"player_id": pid}
+        elif isinstance(p, dict):
+            player_dict = p.copy()
+            pid = player_dict.get('player_id', player_dict.get('playerId', player_dict.get('id')))
+            if not pid:
+                logger.warning(f"Invalid player dict format (no player_id): {p}")
+                continue
+        else:
+            logger.warning(f"Invalid player format (not string or dict): {p}")
+            continue
+        
+        # Filter out placeholder players
+        if pid and (pid.startswith('PLACEHOLDER_') or pid.startswith('placeholder_')):
+            logger.debug(f"Filtering out placeholder player: {pid}")
+            continue
+        
+        # Filter out suspicious player IDs (e.g., "player_8" pattern)
+        import re
+        if pid and re.match(r'^player_\d+$', pid):
+            logger.warning(f"Filtering out suspicious player ID pattern: {pid}")
+            continue
+        
+        # Ensure player_id is set correctly
+        player_dict['player_id'] = pid
         player_dict['isAI'] = await actor.is_ai_player.remote(game_id, pid)
         player_dict['isSpectator'] = False
         players_with_ai_status.append(player_dict)

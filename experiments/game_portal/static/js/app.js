@@ -701,9 +701,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderPlayers(players) {
         playersList.innerHTML = '<strong>Players:</strong> ';
         players.forEach(p => {
-            const isAI = p.isAI || false;
-            const isSpectator = p.isSpectator || false;
-            const playerId = p.player_id || p.playerId || 'unknown';
+            // Handle both string and object player formats
+            let playerId;
+            if (typeof p === 'string') {
+                playerId = p;
+            } else if (typeof p === 'object' && p !== null) {
+                playerId = p.player_id || p.playerId || p.id || 'unknown';
+            } else {
+                console.warn('Invalid player format:', p);
+                return; // Skip invalid player formats
+            }
             
             // Filter out placeholder players - they should never be displayed
             if (playerId && (playerId.startsWith('PLACEHOLDER_') || playerId.startsWith('placeholder_'))) {
@@ -717,6 +724,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('Found suspicious player ID pattern (player_#), skipping display:', playerId);
                 return; // Skip rendering suspicious player IDs
             }
+            
+            // Extract AI and spectator status
+            const isAI = (typeof p === 'object' && p !== null) ? (p.isAI || p.is_ai || false) : false;
+            const isSpectator = (typeof p === 'object' && p !== null) ? (p.isSpectator || p.is_spectator || false) : false;
             
             const displayName = isAI ? `AutoBot` : isSpectator ? `Spectator ${playerId.substring(0, 8)}` : `Player ${playerId.substring(0, 8)}`;
             const aiBadge = isAI ? '<span style="background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); color: white; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem;">🤖 AI</span>' : '';
