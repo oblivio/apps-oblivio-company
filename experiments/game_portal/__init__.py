@@ -672,6 +672,94 @@ async def _backend_get_game_state_impl(request: Request, game_id: str, player_id
         "spectators": game.get('spectators', []),
     }
 
+async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_update: Optional[str] = None):
+    """
+    Backend API: Poll for game updates (players joined, game started, etc.).
+    Returns public game information suitable for external sites to display.
+    Accessible from *.oblivio-company.com
+    """
+    try:
+        actor = get_actor_handle(request)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
+    game = await actor.get_game.remote(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    # Build player list with AI status
+    players_list = []
+    for p in game.get('players', []):
+        player_dict = p.copy() if isinstance(p, dict) else {"player_id": p}
+        pid = player_dict.get('player_id', player_dict)
+        is_ai = await actor.is_ai_player.remote(game_id, pid)
+        players_list.append({
+            "player_id": pid,
+            "is_ai": is_ai,
+            "is_spectator": False
+        })
+    
+    # Add spectators
+    for spec_id in game.get('spectators', []):
+        players_list.append({
+            "player_id": spec_id,
+            "is_ai": False,
+            "is_spectator": True
+        })
+    
+    # Determine if there are updates since last poll
+    # For simplicity, we'll always return current state
+    # External sites can compare timestamps or player counts to detect changes
+    game_status = game.get('status', 'waiting')
+    
+    # Build response with all relevant info for external display
+    response = {
+        "game_id": game_id,
+        "game_type": game.get('game_type'),
+        "game_mode": game.get('game_mode'),
+        "status": game_status,
+        "host_id": game.get('host_id'),
+        "players": players_list,
+        "player_count": len(game.get('players', [])),
+        "spectator_count": len(game.get('spectators', [])),
+        "min_players": game.get('min_players'),
+        "max_players": game.get('max_players'),
+        "can_start": game_status == 'waiting' and len(game.get('players', [])) >= game.get('min_players', 2),
+        "is_started": game_status in ['in_progress', 'round_finished', 'hand_finished'],
+        "is_finished": game_status == 'finished',
+        # Include basic game state info if game is in progress (without sensitive data)
+        "game_state_summary": None
+    }
+    
+    # Add game state summary if game is in progress (public info only)
+    game_state = game.get('game_state')
+    if game_state and game_status in ['in_progress', 'round_finished', 'hand_finished']:
+        game_type = game.get('game_type')
+        if game_type == 'blackjack':
+            # Public blackjack info
+            response["game_state_summary"] = {
+                "round_number": game_state.get('round_number', 1),
+                "current_turn": game_state.get('players', [])[game_state.get('current_turn_index', 0)] if game_state.get('current_turn_index') is not None else None,
+                "dealer_value": game_state.get('dealer_value', 0) if game_status != 'in_progress' else None,  # Only show if round finished
+                "scores": game_state.get('scores', {}),
+                "hand_wins": game_state.get('hand_wins', {})
+            }
+        elif game_type == 'dominoes':
+            # Public dominoes info
+            from .dominoes_logic import get_open_ends
+            board = game_state.get('board', [])
+            response["game_state_summary"] = {
+                "board_length": len(board),
+                "current_turn": game_state.get('players', [])[game_state.get('current_turn_index', 0)] if game_state.get('current_turn_index') is not None else None,
+                "open_ends": get_open_ends(board) if board else None,
+                "scores": game_state.get('scores', {})
+            }
+    
+    return response
+
 async def _backend_auto_create_game_impl(
     request: Request,
     game_type: str,
@@ -801,6 +889,16 @@ async def backend_auto_create_game_api(
 ):
     """Backend API: Automatically create a new game and auto-join the player (with /api prefix). Accessible from *.oblivio-company.com"""
     return await _backend_auto_create_game_impl(request, game_type, game_mode, ai_count, player_id)
+
+@backend_bp.get("/game/{game_id}/poll")
+async def backend_poll_game_updates(request: Request, game_id: str, last_update: Optional[str] = None):
+    """Backend API: Poll for game updates (players joined, game started, etc.). Accessible from *.oblivio-company.com"""
+    return await _backend_poll_game_updates_impl(request, game_id, last_update)
+
+@backend_bp.get("/api/game/{game_id}/poll")
+async def backend_poll_game_updates_api(request: Request, game_id: str, last_update: Optional[str] = None):
+    """Backend API: Poll for game updates (players joined, game started, etc., with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_poll_game_updates_impl(request, game_id, last_update)
 
 
 # --- WebSocket Endpoint ---
