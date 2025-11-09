@@ -331,6 +331,126 @@ console.log(`Lobby ${result.action}:`, result.game_id);
 
 **Note**: This endpoint automatically handles placeholder replacement. If a new lobby is created, a placeholder is created and will be replaced when the user visits the game link.
 
+### 8. MyCircles Quick Join (Recommended for mycircles.oblivio-company.com)
+
+**🎯 ONE-LINER ENDPOINT FOR MYCIRCLES INTEGRATION**
+
+This endpoint automatically handles everything for mycircles integration:
+1. Gets or creates the persistent lobby for `circle_id + game_type` (ensures ONE lobby per circle per game type)
+2. Joins the player to the lobby
+3. Returns `game_id` and `redirect_url` for seamless redirect
+
+**Endpoint**: `POST /mycircles/join/{circle_id}/{game_type}`
+
+**Path Parameters**:
+- `circle_id` (string, required): The circle ID from mycircles
+- `game_type` (string, required): `"blackjack"` or `"dominoes"`
+
+**Request Body**:
+```json
+{
+  "player_id": "user123"
+}
+```
+
+**Response**:
+```json
+{
+  "game_id": "LOBBY_ABC123",
+  "player_id": "user123",
+  "game_type": "blackjack",
+  "game_mode": "best_of_5",
+  "redirect_url": "https://apps.oblivio-company.com/experiments/game_portal/?game=LOBBY_ABC123",
+  "players": ["user123"],
+  "player_count": 1,
+  "status": "waiting",
+  "min_players": 2,
+  "max_players": 4
+}
+```
+
+**Example**:
+```javascript
+// When user clicks "Play Blackjack" in a circle
+async function joinCircleGame(circleId, gameType, userId) {
+  const response = await fetch(
+    `https://apps.oblivio-company.com/experiments/game_portal/backend/mycircles/join/${circleId}/${gameType}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: userId })
+    }
+  );
+  
+  if (!response.ok) {
+    throw new Error('Failed to join game');
+  }
+  
+  const result = await response.json();
+  
+  // Automatically redirect to game portal
+  window.location.href = result.redirect_url;
+  
+  return result;
+}
+
+// Usage
+await joinCircleGame('circle123', 'blackjack', 'user123');
+```
+
+**Key Features**:
+- ✅ **ONE lobby per circle per game type** - Automatically handled!
+- ✅ **Persistent lobbies** - Lobby always exists, can have 0-4 players
+- ✅ **Auto-join** - Player automatically joins if not already in lobby
+- ✅ **Redirect URL** - Ready-to-use URL for redirecting to game portal
+- ✅ **No placeholders** - Clean player list, no placeholder players
+
+### 9. MyCircles Get Lobby Status
+
+Get the current status of a circle's lobby without joining. Perfect for displaying "X players waiting" in the mycircles UI.
+
+**Endpoint**: `GET /mycircles/lobby/{circle_id}/{game_type}`
+
+**Path Parameters**:
+- `circle_id` (string, required): The circle ID from mycircles
+- `game_type` (string, required): `"blackjack"` or `"dominoes"`
+
+**Response**:
+```json
+{
+  "game_id": "LOBBY_ABC123",
+  "game_type": "blackjack",
+  "game_mode": "best_of_5",
+  "players": ["user123", "user456"],
+  "player_count": 2,
+  "status": "waiting",
+  "min_players": 2,
+  "max_players": 4,
+  "can_join": true
+}
+```
+
+**Example**:
+```javascript
+// Poll lobby status to show in UI
+async function getLobbyStatus(circleId, gameType) {
+  const response = await fetch(
+    `https://apps.oblivio-company.com/experiments/game_portal/backend/mycircles/lobby/${circleId}/${gameType}`
+  );
+  
+  if (!response.ok) {
+    throw new Error('Failed to get lobby status');
+  }
+  
+  return await response.json();
+}
+
+// Display in UI
+const lobby = await getLobbyStatus('circle123', 'blackjack');
+console.log(`${lobby.player_count} players waiting`);
+console.log(`Can join: ${lobby.can_join}`);
+```
+
 ## Error Handling
 
 All endpoints return standard HTTP status codes:
@@ -376,76 +496,112 @@ try {
 
 ## Integration Workflow for mycircles.oblivio-company.com
 
-### Step 1: Create a Game
+### 🎯 Recommended: Use MyCircles Quick Join Endpoint
 
-When a user wants to create a game in mycircles:
-
-```javascript
-async function createGame(userId, gameType = 'blackjack') {
-  const response = await fetch('https://your-domain.com/experiments/game_portal/backend/game/create', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      player_id: userId,
-      game_type: gameType,
-      game_mode: 'classic',
-      ai_count: 0  // Start with no AI, let friends join
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to create game');
-  }
-
-  const game = await response.json();
-  return game;
-}
-```
-
-### Step 2: Share Game Link
-
-Generate a shareable link for the game:
+**The simplest way to integrate!** One endpoint handles everything:
 
 ```javascript
-function getGameShareLink(gameId) {
-  // Option 1: Link to your app's game page
-  return `https://mycircles.oblivio-company.com/games/${gameId}`;
+// When user clicks "Play Blackjack" in a circle
+async function playGameInCircle(circleId, gameType, userId) {
+  const response = await fetch(
+    `https://apps.oblivio-company.com/experiments/game_portal/backend/mycircles/join/${circleId}/${gameType}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: userId })
+    }
+  );
   
-  // Option 2: Link directly to Game Portal
-  return `https://your-domain.com/experiments/game_portal/?game=${gameId}`;
-}
-```
-
-### Step 3: Join Game from Shared Link
-
-When someone clicks the shared link:
-
-```javascript
-async function joinGame(gameId, userId) {
-  const response = await fetch(`https://your-domain.com/experiments/game_portal/backend/game/${gameId}/join`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      player_id: userId,
-      as_spectator: false
-    })
-  });
-
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to join game');
+    throw new Error('Failed to join game');
   }
-
+  
   const result = await response.json();
+  
+  // Automatically redirect to game portal
+  window.location.href = result.redirect_url;
+  
   return result;
 }
+
+// Usage
+await playGameInCircle('circle123', 'blackjack', 'user123');
 ```
 
-### Step 4: Poll Game State (Optional)
+**That's it!** This automatically:
+- ✅ Gets or creates the persistent lobby for that circle + game type
+- ✅ Joins the player to the lobby
+- ✅ Returns the redirect URL
+- ✅ Ensures ONE lobby per circle per game type
+
+### Display Lobby Status in UI
+
+Show "X players waiting" in your circle UI:
+
+```javascript
+// Poll lobby status to display in circle page
+async function displayLobbyStatus(circleId, gameType) {
+  const response = await fetch(
+    `https://apps.oblivio-company.com/experiments/game_portal/backend/mycircles/lobby/${circleId}/${gameType}`
+  );
+  
+  if (!response.ok) {
+    return null; // Lobby doesn't exist or error
+  }
+  
+  const lobby = await response.json();
+  
+  // Display in UI
+  if (lobby.player_count > 0) {
+    document.getElementById('lobby-status').textContent = 
+      `${lobby.player_count} player${lobby.player_count > 1 ? 's' : ''} waiting`;
+  } else {
+    document.getElementById('lobby-status').textContent = 'No players yet';
+  }
+  
+  return lobby;
+}
+
+// Poll every 5 seconds
+setInterval(() => {
+  displayLobbyStatus('circle123', 'blackjack');
+}, 5000);
+```
+
+### Alternative: Manual Integration (If Needed)
+
+If you need more control, you can use the standard lobby endpoints:
+
+#### Step 1: Get or Create Lobby
+
+```javascript
+async function getOrCreateLobby(circleId, gameType, userId) {
+  const response = await fetch(
+    `https://apps.oblivio-company.com/experiments/game_portal/backend/lobby/${circleId}/${gameType}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: userId })
+    }
+  );
+  
+  if (!response.ok) {
+    throw new Error('Failed to get or create lobby');
+  }
+  
+  return await response.json();
+}
+```
+
+#### Step 2: Redirect to Game Portal
+
+```javascript
+const lobby = await getOrCreateLobby('circle123', 'blackjack', 'user123');
+const gameUrl = `https://apps.oblivio-company.com/experiments/game_portal/?game=${lobby.game_id}`;
+window.location.href = gameUrl;
+```
+
+### Poll Game State (Optional)
 
 If you want to display game status in your app:
 
@@ -576,6 +732,24 @@ class GamePortalClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ player_id: playerId })
     });
+    if (!response.ok) throw new Error(await response.text());
+    return await response.json();
+  }
+
+  // MyCircles Quick Join (Recommended)
+  async mycirclesQuickJoin(circleId, gameType, playerId) {
+    const response = await fetch(`${this.baseUrl}/mycircles/join/${circleId}/${gameType}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: playerId })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return await response.json();
+  }
+
+  // MyCircles Get Lobby Status
+  async mycirclesGetLobby(circleId, gameType) {
+    const response = await fetch(`${this.baseUrl}/mycircles/lobby/${circleId}/${gameType}`);
     if (!response.ok) throw new Error(await response.text());
     return await response.json();
   }
