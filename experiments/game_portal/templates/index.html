@@ -1183,31 +1183,64 @@
                     // Use the provided player_id from URL parameter
                     let finalPlayerId = playerId;
                     
-                    console.log('Auto-join: Calling join API', { gameId: gameId.toUpperCase(), playerId: finalPlayerId });
+                    console.log('Auto-join: Checking game status', { gameId: gameId.toUpperCase(), playerId: finalPlayerId });
                     
-                    // Call join API
-                    const joinResponse = await fetch(`${basePath}/api/game/${gameId.toUpperCase()}/join`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            player_id: finalPlayerId,
-                            replace_ai: null,
-                            as_spectator: false
-                        })
-                    });
-                    
-                    const joinData = await joinResponse.json();
-                    console.log('Auto-join: Join API response', joinData);
-                    
-                    if (!joinResponse.ok || joinData.error) {
-                        // Show error and restore lobby
-                        if (loadingDiv) loadingDiv.remove();
-                        if (lobbyView) {
-                            lobbyView.style.display = 'block';
-                            lobbyView.classList.remove('hidden');
+                    // First, check if player is already in the game (game was created from myCircles)
+                    // Try to get game info to see if player is already in it
+                    let alreadyInGame = false;
+                    try {
+                        const gameInfoResponse = await fetch(`${basePath}/api/game/${gameId.toUpperCase()}`);
+                        if (gameInfoResponse.ok) {
+                            const gameInfo = await gameInfoResponse.json();
+                            const players = gameInfo.players || [];
+                            // Check if player_id is in the players list
+                            alreadyInGame = players.some(p => {
+                                const pid = typeof p === 'object' ? p.player_id || p : p;
+                                return pid === finalPlayerId;
+                            });
+                            console.log('Auto-join: Player already in game?', alreadyInGame, { players });
                         }
-                        alert(`❌ Could not join game: ${joinData.error || joinData.detail || 'Unknown error'}`);
-                        return;
+                    } catch (e) {
+                        console.log('Auto-join: Could not check game info', e);
+                    }
+                    
+                    // Only call join API if player is not already in the game
+                    if (!alreadyInGame) {
+                        console.log('Auto-join: Calling join API', { gameId: gameId.toUpperCase(), playerId: finalPlayerId });
+                        
+                        // Call join API
+                        const joinResponse = await fetch(`${basePath}/api/game/${gameId.toUpperCase()}/join`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                player_id: finalPlayerId,
+                                replace_ai: null,
+                                as_spectator: false
+                            })
+                        });
+                        
+                        const joinData = await joinResponse.json();
+                        console.log('Auto-join: Join API response', joinData);
+                        
+                        if (!joinResponse.ok || joinData.error) {
+                            // Check if error is "already in game" - that's OK, we can still connect
+                            const errorMsg = joinData.error || joinData.detail || '';
+                            if (errorMsg.includes('already in this game') || errorMsg.includes('already in game')) {
+                                console.log('Auto-join: Player already in game (from join API), proceeding...');
+                                alreadyInGame = true;
+                            } else {
+                                // Show error and restore lobby
+                                if (loadingDiv) loadingDiv.remove();
+                                if (lobbyView) {
+                                    lobbyView.style.display = 'block';
+                                    lobbyView.classList.remove('hidden');
+                                }
+                                alert(`❌ Could not join game: ${errorMsg || 'Unknown error'}`);
+                                return;
+                            }
+                        }
+                    } else {
+                        console.log('Auto-join: Player already in game, skipping join API');
                     }
                     
                     // Store game info for app.js to use
