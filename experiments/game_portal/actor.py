@@ -102,8 +102,8 @@ class ExperimentActor:
         # Maximum is 4 players total for all game types
         return 4
 
-    async def create_game(self, player_id: str, game_type: str, game_mode: str = "classic", ai_count: int = 0) -> Dict[str, Any]:
-        """Create a new game lobby with optional AI players."""
+    async def create_game(self, player_id: str, game_type: str, game_mode: str = "classic", ai_count: int = 0, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Create a new game lobby with optional AI players and metadata."""
         self._check_ready()
         
         game_id = self._generate_game_id()
@@ -151,6 +151,10 @@ class ExperimentActor:
             "max_players": max_players
         }
         
+        # Add metadata if provided (e.g., circle_id for mycircles integration)
+        if metadata:
+            game["metadata"] = metadata
+        
         self.games[game_id] = game
         self.ai_players[game_id] = ai_players
         self.spectators[game_id] = []
@@ -161,6 +165,9 @@ class ExperimentActor:
             game_doc["_id"] = game_id
             game_doc["ai_players"] = ai_players
             game_doc["spectators"] = []
+            # Include metadata if present
+            if metadata:
+                game_doc["metadata"] = metadata
             # Convert datetime to ISO format for JSON serialization
             if game_doc.get("created_at"):
                 game_doc["created_at"] = game_doc["created_at"].isoformat()
@@ -400,6 +407,38 @@ class ExperimentActor:
         
         # Convert datetime objects to ISO format for serialization (Ray/FastAPI)
         return self._serialize_datetime(game)
+    
+    def find_waiting_lobby(self, circle_id: str, game_type: str) -> Optional[Dict[str, Any]]:
+        """Find an existing waiting lobby for a circle and game type."""
+        self._check_ready()
+        
+        # Search in-memory games first (faster)
+        for game_id, game in self.games.items():
+            if (game.get("status") == "waiting" and 
+                game.get("game_type") == game_type and
+                game.get("metadata", {}).get("circle_id") == circle_id):
+                # Found a waiting lobby for this circle/game type
+                result = game.copy()
+                result["ai_players"] = self.ai_players.get(game_id, [])
+                result["spectators"] = self.spectators.get(game_id, [])
+                return self._serialize_datetime(result)
+        
+        # If not found in memory, try database (for durability across restarts)
+        try:
+            # Query database for waiting lobbies with matching circle_id and game_type
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If we're in an async context, we can't use sync database calls
+                # Return None and let the caller create a new game
+                return None
+            else:
+                # This is a sync method, so we can't easily query async database
+                # For now, just return None - in-memory search is primary
+                return None
+        except Exception as e:
+            logger.debug(f"Could not search database for waiting lobby: {e}")
+            return None
     
     def get_available_ai_slots(self, game_id: str) -> List[str]:
         """Get list of AI players that can be replaced."""
