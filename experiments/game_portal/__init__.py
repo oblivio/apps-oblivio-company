@@ -331,6 +331,66 @@ async def get_game(request: Request, game_id: str):
     return public_game
 
 
+@bp.get("/api/current-user")
+async def get_current_user_id(request: Request):
+    """
+    Get current user ID - returns authenticated user if available, otherwise indicates to use browser fingerprint.
+    Game portal is public, so player_id should be a browser fingerprint.
+    """
+    slug_id = getattr(request.state, "slug_id", "game_portal")
+    
+    # Try to get user from sub-auth session (optional - for authenticated users)
+    try:
+        from sub_auth import get_experiment_sub_user
+        from experiment_db import get_experiment_db
+        from core_deps import get_experiment_config
+        
+        config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
+        if config:
+            sub_auth = config.get("sub_auth", {})
+            if sub_auth.get("enabled", False):
+                db = await get_experiment_db(request)
+                experiment_user = await get_experiment_sub_user(request, slug_id, db, config, allow_demo_fallback=True)
+                if experiment_user:
+                    user_id = str(experiment_user.get("_id"))
+                    return {
+                        "user_id": user_id,
+                        "experiment_user_id": user_id,
+                        "email": experiment_user.get("email"),
+                        "username": experiment_user.get("username"),
+                        "is_authenticated": True
+                    }
+    except Exception as e:
+        logger.debug(f"Could not get user from sub-auth: {e}")
+    
+    # Try to get user from platform auth (optional - for authenticated users)
+    try:
+        from core_deps import get_current_user
+        
+        # Get token from cookie
+        token = request.cookies.get("token")
+        if token:
+            platform_user = await get_current_user(token=token)
+            if platform_user:
+                user_id = str(platform_user.get("user_id", platform_user.get("_id", "")))
+                if user_id:
+                    return {
+                        "user_id": user_id,
+                        "email": platform_user.get("email"),
+                        "username": platform_user.get("username"),
+                        "is_authenticated": True
+                    }
+    except Exception as e:
+        logger.debug(f"Could not get user from platform auth: {e}")
+    
+    # No authenticated user - game portal is public, use browser fingerprint
+    return {
+        "user_id": None,
+        "is_authenticated": False,
+        "message": "Use browser fingerprint for player_id"
+    }
+
+
 # --- Backend API Endpoints (CORS-enabled for *.oblivio-company.com) ---
 
 @backend_bp.post("/game/create")

@@ -1112,22 +1112,22 @@
     
     <!-- Auto-join script for Game Portal -->
     <script>
-    // Auto-join functionality - activates when URL has ?game=GAMEID&player_id=PLAYERID
+    // Auto-join functionality - activates when URL has ?game=GAMEID
+    // Player ID is determined from browser fingerprint (game_portal is public), NOT from URL parameter
     (function() {
         // Check for URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const gameId = urlParams.get('game');
-        const playerId = urlParams.get('player_id');
         
-        console.log('Auto-join check:', { gameId, playerId });
+        console.log('Auto-join check:', { gameId });
         
-        // Only activate if both parameters are present
-        if (!gameId || !playerId) {
-            console.log('Auto-join: Missing parameters, skipping');
+        // Only activate if game parameter is present (ignore player_id parameter)
+        if (!gameId) {
+            console.log('Auto-join: No game parameter, skipping');
             return; // No auto-join, let normal flow proceed
         }
         
-        console.log('Auto-join: Both parameters found, initializing...');
+        console.log('Auto-join: Game parameter found, initializing...');
         
         // Get base path from current URL
         const currentPath = window.location.pathname;
@@ -1180,8 +1180,61 @@
             // Start async join process
             (async function() {
                 try {
-                    // Use the provided player_id from URL parameter
-                    let finalPlayerId = playerId;
+                    // Get player_id from browser fingerprint (game_portal is public)
+                    console.log('Auto-join: Generating browser fingerprint for player ID...');
+                    let finalPlayerId = null;
+                    
+                    // Use the same fingerprinting logic as app.js
+                    async function generateFingerprint() {
+                        // Check localStorage first
+                        const stored = localStorage.getItem('browser_fingerprint');
+                        if (stored) {
+                            return stored;
+                        }
+                        
+                        // Try FingerprintJS library (loaded in page)
+                        if (typeof FingerprintJS !== 'undefined') {
+                            try {
+                                const fp = await FingerprintJS.load();
+                                const result = await fp.get();
+                                const fingerprint = result.visitorId;
+                                localStorage.setItem('browser_fingerprint', fingerprint);
+                                console.log('Auto-join: Browser Fingerprint (FingerprintJS):', fingerprint);
+                                return fingerprint;
+                            } catch (e) {
+                                console.warn('Auto-join: FingerprintJS failed, using fallback:', e);
+                            }
+                        }
+                        
+                        // Fallback: generate a simple fingerprint
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        ctx.textBaseline = 'top';
+                        ctx.font = '14px Arial';
+                        ctx.fillText('Fingerprint', 2, 2);
+                        
+                        const fingerprint = [
+                            navigator.userAgent,
+                            navigator.language,
+                            screen.width + 'x' + screen.height,
+                            new Date().getTimezoneOffset(),
+                            canvas.toDataURL()
+                        ].join('|');
+                        
+                        let hash = 0;
+                        for (let i = 0; i < fingerprint.length; i++) {
+                            const char = fingerprint.charCodeAt(i);
+                            hash = ((hash << 5) - hash) + char;
+                            hash = hash & hash;
+                        }
+                        const fp = 'fp_' + Math.abs(hash).toString(36);
+                        localStorage.setItem('browser_fingerprint', fp);
+                        console.log('Auto-join: Browser Fingerprint (Fallback):', fp);
+                        return fp;
+                    }
+                    
+                    finalPlayerId = await generateFingerprint();
+                    console.log('Auto-join: Using browser fingerprint as player ID', { playerId: finalPlayerId });
                     
                     console.log('Auto-join: Checking game status', { gameId: gameId.toUpperCase(), playerId: finalPlayerId });
                     

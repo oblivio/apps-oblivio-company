@@ -1771,9 +1771,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkUrlForGame() {
         const urlParams = new URLSearchParams(window.location.search);
         const gameId = urlParams.get('game');
-        const playerId = urlParams.get('player_id');
         
-        console.log('checkUrlForGame:', { gameId, playerId, autoJoinGameId: window.autoJoinGameId, autoJoinPlayerId: window.autoJoinPlayerId });
+        console.log('checkUrlForGame:', { gameId, autoJoinGameId: window.autoJoinGameId, autoJoinPlayerId: window.autoJoinPlayerId });
         
         // Check if auto-join script already joined
         if (window.autoJoinGameId && window.autoJoinPlayerId) {
@@ -1784,17 +1783,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!browserFingerprint) {
                     browserFingerprint = await generateFingerprint();
                 }
-                // Use the player_id from auto-join (which may have been fingerprinted)
+                // Use the player_id from auto-join (which uses browser fingerprint)
                 console.log('Connecting WebSocket with:', { gameId: window.autoJoinGameId, playerId: window.autoJoinPlayerId });
                 connectWebSocket(window.autoJoinGameId, window.autoJoinPlayerId);
             }, 100);
             return;
         }
         
-        // Also check if URL has both parameters but auto-join hasn't run yet
+        // If URL has game parameter but auto-join hasn't run yet
         // This can happen if app.js loads before auto-join script completes
-        if (gameId && playerId) {
-            console.log('URL has both parameters, waiting for auto-join...');
+        if (gameId) {
+            console.log('URL has game parameter, waiting for auto-join...');
             // Don't show lobby - auto-join should handle it
             // Wait a bit for auto-join to complete
             const checkAutoJoin = setInterval(() => {
@@ -1827,20 +1826,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 5000);
             return; // Don't proceed with normal flow
-        }
-        
-        if (gameId) {
-            // Pre-fill the game ID input but don't auto-join
-            // User can still choose to create a new game or join this one
-            gameIdInput.value = gameId.toUpperCase();
-            setTimeout(async () => {
-                // First check for auto-recovery (only if user was previously connected)
-                const recovered = await checkForAutoRecovery();
-                if (!recovered) {
-                    // Don't auto-join - let user choose to create or join
-                    // Just pre-fill the game ID for convenience
-                }
-            }, 500);
         } else {
             // Check for auto-recovery even without URL param
             checkForAutoRecovery();
