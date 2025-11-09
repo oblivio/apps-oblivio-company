@@ -267,8 +267,10 @@ class ExperimentActor:
         
         game = self.games[game_id]
         
-        if game["host_id"] != player_id:
-            return {"error": "Only the host can start the game"}
+        # Allow any player in the game to start (not just host)
+        # This allows players joining from mycircles to start the game
+        if player_id not in game["players"]:
+            return {"error": "You must be in the game to start it"}
         
         if game["status"] != "waiting":
             return {"error": "Game has already started"}

@@ -314,8 +314,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const gameStatus = data.game_status || (data.game_state ? data.game_state.status : 'waiting');
                     const isHost = data.is_host || false;
                     
-                    // Show/hide start button based on game status and host status
-                    if (gameStatus === 'waiting' && isHost && !data.is_spectator) {
+                    // Show/hide start button based on game status
+                    // Allow any player (not just host) to start the game
+                    // This allows players joining from mycircles to start the game
+                    if (gameStatus === 'waiting' && !data.is_spectator) {
                         startGameBtn.classList.remove('hidden');
                         const waitingMsg = document.getElementById('waiting-message');
                         if (waitingMsg) waitingMsg.style.display = 'block';

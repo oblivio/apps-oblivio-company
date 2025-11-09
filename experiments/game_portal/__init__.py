@@ -609,8 +609,11 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
                     await websocket.send_json({"type": "error", "message": "Spectators cannot start games"})
                     continue
                 
-                if current_game.get('host_id') != player_id:
-                    await websocket.send_json({"type": "error", "message": "Only the host can start."})
+                # Allow any player in the game to start (not just host)
+                # This allows players joining from mycircles to start the game
+                player_ids = [p.get('player_id') if isinstance(p, dict) else p for p in current_game.get('players', [])]
+                if player_id not in player_ids:
+                    await websocket.send_json({"type": "error", "message": "You must be in the game to start it."})
                     continue
                 
                 result = await actor.start_game.remote(game_id, player_id)
