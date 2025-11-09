@@ -421,15 +421,25 @@ class ExperimentActor:
                     if "ready_for_next_round" not in new_state:
                         new_state["ready_for_next_round"] = {}
                     ai_players_list = self.ai_players.get(game_id, [])
+                    all_players = game.get("players", [])
+                    
+                    # Mark all AI players as ready
                     for ai_id in ai_players_list:
                         if ai_id in game["players"]:
                             new_state["ready_for_next_round"][ai_id] = True
                             logger.info(f"Auto-marked AI player {ai_id} as ready for next round")
                     
-                    # Check if all players are ready (including AI)
-                    all_players = game.get("players", [])
+                    # Also auto-mark ALL human players as ready
+                    # This allows the round to auto-start immediately
+                    for pid in all_players:
+                        if pid not in ai_players_list:
+                            new_state["ready_for_next_round"][pid] = True
+                            logger.info(f"Auto-marked human player {pid} as ready for next round")
+                    
+                    # Check if all players are ready (including AI and human)
                     ready_players = new_state.get("ready_for_next_round", {})
                     all_ready = len(ready_players) >= len(all_players)
+                    logger.info(f"Round finished - Ready check: {len(ready_players)}/{len(all_players)} players ready. AI players: {ai_players_list}, All players: {all_players}, Ready: {list(ready_players.keys())}")
                     if all_ready:
                         logger.info(f"All players ready for next round, will auto-start")
                         return {"success": True, "all_ready_for_next_round": True}
@@ -438,15 +448,25 @@ class ExperimentActor:
                     if "ready_for_next_hand" not in new_state:
                         new_state["ready_for_next_hand"] = {}
                     ai_players_list = self.ai_players.get(game_id, [])
+                    all_players = game.get("players", [])
+                    
+                    # Mark all AI players as ready
                     for ai_id in ai_players_list:
                         if ai_id in game["players"]:
                             new_state["ready_for_next_hand"][ai_id] = True
                             logger.info(f"Auto-marked AI player {ai_id} as ready for next hand")
                     
-                    # Check if all players are ready (including AI)
-                    all_players = game.get("players", [])
+                    # Also auto-mark ALL human players as ready
+                    # This allows the hand to auto-start immediately
+                    for pid in all_players:
+                        if pid not in ai_players_list:
+                            new_state["ready_for_next_hand"][pid] = True
+                            logger.info(f"Auto-marked human player {pid} as ready for next hand")
+                    
+                    # Check if all players are ready (including AI and human)
                     ready_players = new_state.get("ready_for_next_hand", {})
                     all_ready = len(ready_players) >= len(all_players)
+                    logger.info(f"Hand finished - Ready check: {len(ready_players)}/{len(all_players)} players ready. AI players: {ai_players_list}, All players: {all_players}, Ready: {list(ready_players.keys())}")
                     if all_ready:
                         logger.info(f"All players ready for next hand, will auto-start")
                         return {"success": True, "all_ready_for_next_hand": True}
