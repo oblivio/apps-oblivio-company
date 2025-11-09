@@ -8,8 +8,8 @@ import logging
 import json
 import asyncio
 import ray
-from fastapi import APIRouter, Request, HTTPException, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request, HTTPException, WebSocket, WebSocketDisconnect, status, Body
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from typing import Any, Dict, Optional
@@ -18,6 +18,10 @@ from .actor import ExperimentActor
 
 logger = logging.getLogger(__name__)
 bp = APIRouter()
+
+# Backend API router with CORS support for *.oblivio-company.com
+# Note: prefix is added when mounting, so don't include it here
+backend_bp = APIRouter(tags=["Game Portal Backend API"])
 
 # Path setup
 EXPERIMENT_DIR = Path(__file__).resolve().parent
@@ -296,6 +300,154 @@ async def get_ai_slots(request: Request, game_id: str):
     actor = get_actor_handle(request)
     ai_slots = await actor.get_available_ai_slots.remote(game_id)
     return {"ai_slots": ai_slots}
+
+
+@bp.get("/api/game/{game_id}")
+async def get_game(request: Request, game_id: str):
+    """Get game information."""
+    actor = get_actor_handle(request)
+    game = await actor.get_game.remote(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    # Sanitize game state for public access (hide sensitive info)
+    game_type = game.get('game_type')
+    game_state = game.get('game_state')
+    
+    # Return public game info without sensitive game state
+    public_game = {
+        "game_id": game.get('game_id'),
+        "game_type": game_type,
+        "game_mode": game.get('game_mode'),
+        "status": game.get('status'),
+        "players": game.get('players', []),
+        "ai_players": game.get('ai_players', []),
+        "spectators": game.get('spectators', []),
+        "host_id": game.get('host_id'),
+        "min_players": game.get('min_players'),
+        "max_players": game.get('max_players'),
+        # Don't expose game_state in public endpoint
+    }
+    return public_game
+
+
+# --- Backend API Endpoints (CORS-enabled for *.oblivio-company.com) ---
+
+@backend_bp.post("/game/create")
+async def backend_create_game(request: Request, create_req: CreateGameRequest):
+    """Backend API: Creates a new game lobby. Accessible from *.oblivio-company.com"""
+    actor = get_actor_handle(request)
+    result = await actor.create_game.remote(
+        player_id=create_req.player_id,
+        game_type=create_req.game_type,
+        game_mode=create_req.game_mode,
+        ai_count=create_req.ai_count
+    )
+    return result
+
+
+@backend_bp.post("/game/{game_id}/join")
+async def backend_join_game(request: Request, game_id: str, join_req: JoinGameRequest):
+    """Backend API: Allows a new player to join a waiting game or mid-game. Accessible from *.oblivio-company.com"""
+    actor = get_actor_handle(request)
+    result = await actor.join_game.remote(
+        game_id, 
+        join_req.player_id,
+        join_req.replace_ai,
+        join_req.as_spectator
+    )
+    
+    if result.get("error"):
+        return result
+    
+    # Notify lobby via WebSocket
+    await broadcast_to_game(game_id, {
+        "type": "player_joined",
+        "player_id": join_req.player_id,
+        "role": result.get("role", "player"),
+        "replaced_ai": result.get("replaced_ai")
+    })
+    
+    return result
+
+
+@backend_bp.get("/game/{game_id}")
+async def backend_get_game(request: Request, game_id: str):
+    """Backend API: Get game information. Accessible from *.oblivio-company.com"""
+    actor = get_actor_handle(request)
+    game = await actor.get_game.remote(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    # Return public game info
+    public_game = {
+        "game_id": game.get('game_id'),
+        "game_type": game.get('game_type'),
+        "game_mode": game.get('game_mode'),
+        "status": game.get('status'),
+        "players": game.get('players', []),
+        "ai_players": game.get('ai_players', []),
+        "spectators": game.get('spectators', []),
+        "host_id": game.get('host_id'),
+        "min_players": game.get('min_players'),
+        "max_players": game.get('max_players'),
+    }
+    return public_game
+
+
+@backend_bp.get("/game/{game_id}/ai-slots")
+async def backend_get_ai_slots(request: Request, game_id: str):
+    """Backend API: Get available AI slots that can be replaced. Accessible from *.oblivio-company.com"""
+    actor = get_actor_handle(request)
+    ai_slots = await actor.get_available_ai_slots.remote(game_id)
+    return {"ai_slots": ai_slots}
+
+
+@backend_bp.post("/game/{game_id}/start")
+async def backend_start_game(request: Request, game_id: str, player_id: str = Body(..., embed=True)):
+    """Backend API: Start a game. Accessible from *.oblivio-company.com"""
+    actor = get_actor_handle(request)
+    result = await actor.start_game.remote(game_id, player_id)
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@backend_bp.get("/game/{game_id}/state")
+async def backend_get_game_state(request: Request, game_id: str, player_id: Optional[str] = None):
+    """Backend API: Get game state (sanitized for player if player_id provided). Accessible from *.oblivio-company.com"""
+    actor = get_actor_handle(request)
+    game = await actor.get_game.remote(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    game_state = game.get('game_state')
+    game_type = game.get('game_type')
+    
+    if player_id and game_state:
+        # Sanitize game state for specific player
+        sanitized = await actor.sanitize_game_state_for_player.remote(game_type, game_state, player_id)
+        return {
+            "game_id": game_id,
+            "game_type": game_type,
+            "game_mode": game.get('game_mode'),
+            "status": game.get('status'),
+            "game_state": sanitized,
+            "players": game.get('players', []),
+            "ai_players": game.get('ai_players', []),
+            "spectators": game.get('spectators', []),
+        }
+    
+    # Return limited info if no player_id or no game_state
+    return {
+        "game_id": game_id,
+        "game_type": game_type,
+        "game_mode": game.get('game_mode'),
+        "status": game.get('status'),
+        "players": game.get('players', []),
+        "ai_players": game.get('ai_players', []),
+        "spectators": game.get('spectators', []),
+    }
 
 
 # --- WebSocket Endpoint ---

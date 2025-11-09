@@ -744,6 +744,34 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
             logger.error(f"[{slug}] ❌ Failed to mount experiment at '{prefix}': {e}", exc_info=True)
             continue
 
+        # Register backend API router with CORS if it exists (for game_portal)
+        if hasattr(init_mod, "backend_bp"):
+            backend_router = getattr(init_mod, "backend_bp")
+            if isinstance(backend_router, APIRouter):
+                backend_prefix = f"/experiments/{slug}/backend"
+                try:
+                    # Create a sub-application with CORS middleware for backend routes
+                    from fastapi import FastAPI
+                    from fastapi.middleware.cors import CORSMiddleware
+                    
+                    # Create a sub-app for backend routes with CORS
+                    backend_app = FastAPI()
+                    backend_app.add_middleware(
+                        CORSMiddleware,
+                        allow_origin_regex=r"https?://.*\.oblivio-company\.com",
+                        allow_credentials=True,
+                        allow_methods=["*"],
+                        allow_headers=["*"],
+                    )
+                    backend_app.include_router(backend_router)
+                    
+                    # Mount the sub-app at the backend prefix
+                    app.mount(backend_prefix, backend_app)
+                    
+                    logger.info(f"[{slug}] ✅ Backend API mounted at '{backend_prefix}' with CORS enabled for *.oblivio-company.com")
+                except Exception as e:
+                    logger.error(f"[{slug}] ❌ Failed to mount backend API at '{backend_prefix}': {e}", exc_info=True)
+
         # If Ray is not available, skip actor logic
         if not getattr(app.state, "ray_is_available", False):
             logger.warning(f"[{slug}] No Ray available; skipping actor.")
