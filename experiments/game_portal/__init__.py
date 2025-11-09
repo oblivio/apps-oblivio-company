@@ -401,10 +401,10 @@ async def get_current_user_id(request: Request):
 
 
 # --- Backend API Endpoints (CORS-enabled for *.oblivio-company.com) ---
+# Support both /game/... and /api/game/... paths for compatibility
 
-@backend_bp.post("/game/create")
-async def backend_create_game(request: Request, create_req: CreateGameRequest):
-    """Backend API: Creates a new game lobby. Accessible from *.oblivio-company.com"""
+async def _backend_create_game_impl(request: Request, create_req: CreateGameRequest):
+    """Implementation for creating a game."""
     actor = get_actor_handle(request)
     result = await actor.create_game.remote(
         player_id=create_req.player_id,
@@ -414,10 +414,8 @@ async def backend_create_game(request: Request, create_req: CreateGameRequest):
     )
     return result
 
-
-@backend_bp.post("/game/{game_id}/join")
-async def backend_join_game(request: Request, game_id: str, join_req: JoinGameRequest):
-    """Backend API: Allows a new player to join a waiting game or mid-game. Accessible from *.oblivio-company.com"""
+async def _backend_join_game_impl(request: Request, game_id: str, join_req: JoinGameRequest):
+    """Implementation for joining a game."""
     actor = get_actor_handle(request)
     result = await actor.join_game.remote(
         game_id, 
@@ -439,10 +437,8 @@ async def backend_join_game(request: Request, game_id: str, join_req: JoinGameRe
     
     return result
 
-
-@backend_bp.get("/game/{game_id}")
-async def backend_get_game(request: Request, game_id: str):
-    """Backend API: Get game information. Accessible from *.oblivio-company.com"""
+async def _backend_get_game_impl(request: Request, game_id: str):
+    """Implementation for getting game info."""
     actor = get_actor_handle(request)
     game = await actor.get_game.remote(game_id)
     if not game:
@@ -463,27 +459,21 @@ async def backend_get_game(request: Request, game_id: str):
     }
     return public_game
 
-
-@backend_bp.get("/game/{game_id}/ai-slots")
-async def backend_get_ai_slots(request: Request, game_id: str):
-    """Backend API: Get available AI slots that can be replaced. Accessible from *.oblivio-company.com"""
+async def _backend_get_ai_slots_impl(request: Request, game_id: str):
+    """Implementation for getting AI slots."""
     actor = get_actor_handle(request)
     ai_slots = await actor.get_available_ai_slots.remote(game_id)
     return {"ai_slots": ai_slots}
 
-
-@backend_bp.post("/game/{game_id}/start")
-async def backend_start_game(request: Request, game_id: str, player_id: str = Body(..., embed=True)):
-    """Backend API: Start a game. Accessible from *.oblivio-company.com"""
+async def _backend_start_game_impl(request: Request, game_id: str, player_id: str = Body(..., embed=True)):
+    """Implementation for starting a game."""
     actor = get_actor_handle(request)
     result = await actor.start_game.remote(game_id, player_id)
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
     return result
 
-
-@backend_bp.get("/game/{game_id}/state")
-async def backend_get_game_state(request: Request, game_id: str, player_id: Optional[str] = None):
+async def _backend_get_game_state_impl(request: Request, game_id: str, player_id: Optional[str] = None):
     """Backend API: Get game state (sanitized for player if player_id provided). Accessible from *.oblivio-company.com"""
     actor = get_actor_handle(request)
     game = await actor.get_game.remote(game_id)
@@ -517,6 +507,67 @@ async def backend_get_game_state(request: Request, game_id: str, player_id: Opti
         "ai_players": game.get('ai_players', []),
         "spectators": game.get('spectators', []),
     }
+
+# Register routes with both /game/... and /api/game/... paths for compatibility
+@backend_bp.post("/game/create")
+async def backend_create_game(request: Request, create_req: CreateGameRequest):
+    """Backend API: Creates a new game lobby. Accessible from *.oblivio-company.com"""
+    return await _backend_create_game_impl(request, create_req)
+
+@backend_bp.post("/api/game/create")
+async def backend_create_game_api(request: Request, create_req: CreateGameRequest):
+    """Backend API: Creates a new game lobby (with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_create_game_impl(request, create_req)
+
+@backend_bp.post("/game/{game_id}/join")
+async def backend_join_game(request: Request, game_id: str, join_req: JoinGameRequest):
+    """Backend API: Allows a new player to join a waiting game or mid-game. Accessible from *.oblivio-company.com"""
+    return await _backend_join_game_impl(request, game_id, join_req)
+
+@backend_bp.post("/api/game/{game_id}/join")
+async def backend_join_game_api(request: Request, game_id: str, join_req: JoinGameRequest):
+    """Backend API: Allows a new player to join a waiting game or mid-game (with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_join_game_impl(request, game_id, join_req)
+
+@backend_bp.get("/game/{game_id}")
+async def backend_get_game(request: Request, game_id: str):
+    """Backend API: Get game information. Accessible from *.oblivio-company.com"""
+    return await _backend_get_game_impl(request, game_id)
+
+@backend_bp.get("/api/game/{game_id}")
+async def backend_get_game_api(request: Request, game_id: str):
+    """Backend API: Get game information (with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_get_game_impl(request, game_id)
+
+@backend_bp.get("/game/{game_id}/ai-slots")
+async def backend_get_ai_slots(request: Request, game_id: str):
+    """Backend API: Get available AI slots that can be replaced. Accessible from *.oblivio-company.com"""
+    return await _backend_get_ai_slots_impl(request, game_id)
+
+@backend_bp.get("/api/game/{game_id}/ai-slots")
+async def backend_get_ai_slots_api(request: Request, game_id: str):
+    """Backend API: Get available AI slots that can be replaced (with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_get_ai_slots_impl(request, game_id)
+
+@backend_bp.post("/game/{game_id}/start")
+async def backend_start_game(request: Request, game_id: str, player_id: str = Body(..., embed=True)):
+    """Backend API: Start a game. Accessible from *.oblivio-company.com"""
+    return await _backend_start_game_impl(request, game_id, player_id)
+
+@backend_bp.post("/api/game/{game_id}/start")
+async def backend_start_game_api(request: Request, game_id: str, player_id: str = Body(..., embed=True)):
+    """Backend API: Start a game (with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_start_game_impl(request, game_id, player_id)
+
+@backend_bp.get("/game/{game_id}/state")
+async def backend_get_game_state(request: Request, game_id: str, player_id: Optional[str] = None):
+    """Backend API: Get game state (sanitized for player if player_id provided). Accessible from *.oblivio-company.com"""
+    return await _backend_get_game_state_impl(request, game_id, player_id)
+
+@backend_bp.get("/api/game/{game_id}/state")
+async def backend_get_game_state_api(request: Request, game_id: str, player_id: Optional[str] = None):
+    """Backend API: Get game state (sanitized for player if player_id provided, with /api prefix). Accessible from *.oblivio-company.com"""
+    return await _backend_get_game_state_impl(request, game_id, player_id)
 
 
 # --- WebSocket Endpoint ---
