@@ -671,26 +671,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        const myTurn = state.players[state.current_turn_index] === localPlayerId;
-        const currentPlayerId = state.players[state.current_turn_index];
+        const myTurn = state.players && state.current_turn_index !== undefined && state.players[state.current_turn_index] === localPlayerId;
+        const currentPlayerId = state.players && state.current_turn_index !== undefined ? state.players[state.current_turn_index] : null;
         
         if (myTurn) {
             turnDisplay.textContent = "🎯 YOUR TURN! 🎯";
             turnDisplayCard.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
             turnDisplayCard.style.boxShadow = '0 8px 24px rgba(72, 187, 120, 0.5)';
-        } else {
-            let playerName = currentPlayerId;
-            const playerCards = playersList.querySelectorAll('div > div');
-            playerCards.forEach(card => {
-                const svg = card.parentElement.querySelector('svg');
-                if (svg && svg.getAttribute('data-jdenticon-value') === currentPlayerId) {
-                    const nameEl = card.querySelector('div');
-                    if (nameEl) {
-                        playerName = nameEl.textContent.split('🤖')[0].trim();
-                    }
-                }
-            });
+        } else if (currentPlayerId) {
+            // Use the helper function to get player display name
+            const playerName = getPlayerDisplayName(currentPlayerId);
             turnDisplay.textContent = `⏳ ${playerName}'s Turn`;
+            turnDisplayCard.style.background = 'linear-gradient(135deg, #f6ad55 0%, #ed8936 100%)';
+            turnDisplayCard.style.boxShadow = '0 4px 12px rgba(246, 173, 85, 0.3)';
+        } else {
+            // Fallback if current player is not available
+            turnDisplay.textContent = "⏳ Waiting...";
             turnDisplayCard.style.background = 'linear-gradient(135deg, #f6ad55 0%, #ed8936 100%)';
             turnDisplayCard.style.boxShadow = '0 4px 12px rgba(246, 173, 85, 0.3)';
         }
@@ -1067,6 +1063,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!playerId) return 'Unknown';
         if (playerId === localPlayerId) return 'You';
         
+        // Check if it's an AI player
+        if (playerId && playerId.startsWith('AI_')) {
+            return 'AutoBot';
+        }
+        
+        // Try to find player in the players list DOM
         const playerCards = playersList.querySelectorAll('div[style*="display: inline-flex"]');
         for (const card of playerCards) {
             const svg = card.querySelector('svg');
@@ -1076,12 +1078,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const nameDiv = card.querySelector('div > div');
                 if (nameDiv) {
-                    return nameDiv.textContent.split('🤖')[0].trim();
+                    const nameText = nameDiv.textContent.split('🤖')[0].trim();
+                    if (nameText) return nameText;
                 }
             }
         }
         
-        return `Player ${playerId.substring(0, 8)}`;
+        // Fallback: generate a display name from player ID
+        if (playerId && playerId.length > 0) {
+            return `Player ${playerId.substring(0, 8)}`;
+        }
+        
+        return 'Unknown Player';
     }
     
     // --- Helper: Create a domino tile element ---
