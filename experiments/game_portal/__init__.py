@@ -722,6 +722,81 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
                             "is_spectator": True
                         })
                     
+                    # Check if round/hand finished and all players are ready (including AI)
+                    game_state = updated_game.get('game_state', {})
+                    if game_state.get('status') == 'round_finished':
+                        ready_players = game_state.get('ready_for_next_round', {})
+                        all_players = updated_game.get('players', [])
+                        if len(ready_players) >= len(all_players):
+                            # All players ready, start next round
+                            logger.info(f"All players ready for next round, starting automatically")
+                            await actor.start_next_round.remote(game_id)
+                            updated_game = await actor.get_game.remote(game_id)
+                            players_with_ai_status = []
+                            for p in updated_game.get('players', []):
+                                player_dict = p.copy() if isinstance(p, dict) else {"player_id": p}
+                                pid = player_dict.get('player_id', player_dict)
+                                player_dict['isAI'] = await actor.is_ai_player.remote(game_id, pid)
+                                player_dict['isSpectator'] = False
+                                players_with_ai_status.append(player_dict)
+                            
+                            spectators = updated_game.get('spectators', [])
+                            for spec_id in spectators:
+                                players_with_ai_status.append({
+                                    "player_id": spec_id,
+                                    "isAI": False,
+                                    "isSpectator": True
+                                })
+                            
+                            for pid in player_ids:
+                                sanitized = await actor.sanitize_game_state_for_player.remote(
+                                    updated_game.get('game_type'), updated_game.get('game_state'), pid
+                                )
+                                await send_to_player(game_id, pid, {
+                                    "type": "state_update",
+                                    "game_state": sanitized,
+                                    "players": players_with_ai_status,
+                                    "game_status": updated_game.get('status', 'in_progress')
+                                })
+                            # Process AI moves for the new round
+                            await process_ai_moves_with_broadcast(actor, game_id, player_ids)
+                    elif game_state.get('status') == 'hand_finished':
+                        ready_players = game_state.get('ready_for_next_hand', {})
+                        all_players = updated_game.get('players', [])
+                        if len(ready_players) >= len(all_players):
+                            # All players ready, start next hand
+                            logger.info(f"All players ready for next hand, starting automatically")
+                            await actor.start_next_hand.remote(game_id)
+                            updated_game = await actor.get_game.remote(game_id)
+                            players_with_ai_status = []
+                            for p in updated_game.get('players', []):
+                                player_dict = p.copy() if isinstance(p, dict) else {"player_id": p}
+                                pid = player_dict.get('player_id', player_dict)
+                                player_dict['isAI'] = await actor.is_ai_player.remote(game_id, pid)
+                                player_dict['isSpectator'] = False
+                                players_with_ai_status.append(player_dict)
+                            
+                            spectators = updated_game.get('spectators', [])
+                            for spec_id in spectators:
+                                players_with_ai_status.append({
+                                    "player_id": spec_id,
+                                    "isAI": False,
+                                    "isSpectator": True
+                                })
+                            
+                            for pid in player_ids:
+                                sanitized = await actor.sanitize_game_state_for_player.remote(
+                                    updated_game.get('game_type'), updated_game.get('game_state'), pid
+                                )
+                                await send_to_player(game_id, pid, {
+                                    "type": "state_update",
+                                    "game_state": sanitized,
+                                    "players": players_with_ai_status,
+                                    "game_status": updated_game.get('status', 'in_progress')
+                                })
+                            # Process AI moves for the new hand
+                            await process_ai_moves_with_broadcast(actor, game_id, player_ids)
+                    
                     # Process AI moves with state broadcasting
                     # This will handle AI moves and broadcast state updates
                     try:
