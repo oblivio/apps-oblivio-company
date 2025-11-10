@@ -766,6 +766,7 @@ async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_u
     Returns public game information suitable for external sites to display.
     Accessible from *.oblivio-company.com
     """
+    logger.debug(f"Poll endpoint called for game_id: {game_id}, last_update: {last_update}")
     try:
         actor = get_backend_actor_handle(request)
     except HTTPException as e:
@@ -776,7 +777,8 @@ async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_u
     
     game = await actor.get_game.remote(game_id)
     if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
+        logger.warning(f"Game not found for poll: game_id={game_id}")
+        raise HTTPException(status_code=404, detail=f"Game not found: {game_id}")
     
     # Build player list with AI status - return actual game state accurately
     players_list = []
@@ -1071,9 +1073,15 @@ async def backend_auto_create_game_api(
     """Backend API: Automatically create a new game and auto-join the player (with /api prefix). Accessible from *.oblivio-company.com"""
     return await _backend_auto_create_game_impl(request, game_type, game_mode, ai_count, player_id)
 
+@backend_bp.get("/health")
+async def backend_health_check(request: Request):
+    """Health check endpoint for backend API"""
+    return {"status": "ok", "service": "game_portal_backend"}
+
 @backend_bp.get("/game/{game_id}/poll")
 async def backend_poll_game_updates(request: Request, game_id: str, last_update: Optional[str] = None):
     """Backend API: Poll for game updates (players joined, game started, etc.). Accessible from *.oblivio-company.com"""
+    logger.info(f"Poll route hit: game_id={game_id}, path={request.url.path}")
     return await _backend_poll_game_updates_impl(request, game_id, last_update)
 
 @backend_bp.get("/api/game/{game_id}/poll")
