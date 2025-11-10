@@ -916,7 +916,9 @@ async def _backend_lobby_create_or_join_impl(
     request: Request,
     circle_id: str,
     game_type: str,
-    player_id: str
+    player_id: str,
+    game_mode: Optional[str] = None,
+    ai_count: Optional[int] = None
 ):
     """
     Backend API: Get or create a persistent lobby for a circle and game type.
@@ -935,6 +937,17 @@ async def _backend_lobby_create_or_join_impl(
     if game_type not in ["blackjack", "dominoes"]:
         raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
     
+    # Validate game_mode if provided
+    if game_mode is not None:
+        if game_type == "dominoes" and game_mode not in ["classic", "boricua"]:
+            raise HTTPException(status_code=400, detail=f"Invalid game_mode for dominoes: {game_mode}. Must be 'classic' or 'boricua'")
+        elif game_type == "blackjack" and game_mode not in ["best_of_5", "best_of_10"]:
+            raise HTTPException(status_code=400, detail=f"Invalid game_mode for blackjack: {game_mode}. Must be 'best_of_5' or 'best_of_10'")
+    
+    # Validate ai_count if provided
+    if ai_count is not None:
+        ai_count = max(0, min(3, ai_count))  # Clamp to 0-3
+    
     # Get or create persistent lobby (always exists, can have 0-4 players)
     lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
     
@@ -942,18 +955,20 @@ async def _backend_lobby_create_or_join_impl(
     if not game_id:
         raise HTTPException(status_code=500, detail="Failed to get or create lobby")
     
-    # If player_id is provided, join the lobby (if not already in it)
+    # If player_id is provided, join the lobby (if not already in it) with optional settings
     action = "retrieved"  # Default action
     if player_id:
         # Check if player is already in the lobby
         current_players = lobby.get("players", [])
         if player_id not in current_players:
-            # Join the lobby
+            # Join the lobby with optional settings
             join_result = await actor.join_game.remote(
                 game_id,
                 player_id,
                 replace_ai=None,
-                as_spectator=False
+                as_spectator=False,
+                game_mode=game_mode,
+                ai_count=ai_count
             )
             
             if join_result.get("error"):
@@ -1090,13 +1105,26 @@ async def backend_poll_game_updates_api(request: Request, game_id: str, last_upd
     return await _backend_poll_game_updates_impl(request, game_id, last_update)
 
 @backend_bp.post("/lobby/{circle_id}/{game_type}")
-async def backend_lobby_create_or_join(request: Request, circle_id: str, game_type: str, player_id: Optional[str] = Body(None, embed=True)):
+async def backend_lobby_create_or_join(
+    request: Request, 
+    circle_id: str, 
+    game_type: str, 
+    player_id: Optional[str] = Body(None, embed=True),
+    game_mode: Optional[str] = Body(None, embed=True),
+    ai_count: Optional[int] = Body(None, embed=True)
+):
     """
     Backend API: Get or create a persistent lobby for a circle and game type.
     Lobbies always exist - can have 0-4 players. Missing players are auto-filled with AI when starting.
+    
+    Request Body:
+    - player_id (optional): Player ID to join the lobby
+    - game_mode (optional): Game style - "classic" or "boricua" for dominoes, "best_of_5" or "best_of_10" for blackjack
+    - ai_count (optional): Number of AI players (0-3)
+    
     Accessible from *.oblivio-company.com
     """
-    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id or "")
+    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id or "", game_mode, ai_count)
 
 @backend_bp.get("/lobby/{circle_id}/{game_type}")
 async def backend_lobby_get(request: Request, circle_id: str, game_type: str):
@@ -1140,13 +1168,26 @@ async def backend_lobby_get(request: Request, circle_id: str, game_type: str):
     }
 
 @backend_bp.post("/api/lobby/{circle_id}/{game_type}")
-async def backend_lobby_create_or_join_api(request: Request, circle_id: str, game_type: str, player_id: Optional[str] = Body(None, embed=True)):
+async def backend_lobby_create_or_join_api(
+    request: Request, 
+    circle_id: str, 
+    game_type: str, 
+    player_id: Optional[str] = Body(None, embed=True),
+    game_mode: Optional[str] = Body(None, embed=True),
+    ai_count: Optional[int] = Body(None, embed=True)
+):
     """
     Backend API: Get or create a persistent lobby for a circle and game type (with /api prefix).
     Lobbies always exist - can have 0-4 players. Missing players are auto-filled with AI when starting.
+    
+    Request Body:
+    - player_id (optional): Player ID to join the lobby
+    - game_mode (optional): Game style - "classic" or "boricua" for dominoes, "best_of_5" or "best_of_10" for blackjack
+    - ai_count (optional): Number of AI players (0-3)
+    
     Accessible from *.oblivio-company.com
     """
-    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id or "")
+    return await _backend_lobby_create_or_join_impl(request, circle_id, game_type, player_id or "", game_mode, ai_count)
 
 @backend_bp.get("/api/lobby/{circle_id}/{game_type}")
 async def backend_lobby_get_api(request: Request, circle_id: str, game_type: str):
@@ -1193,16 +1234,29 @@ async def backend_lobby_get_api(request: Request, circle_id: str, game_type: str
 # --- MyCircles Integration Endpoints ---
 
 @backend_bp.post("/mycircles/join/{circle_id}/{game_type}")
-async def mycircles_quick_join(request: Request, circle_id: str, game_type: str, player_id: str = Body(..., embed=True)):
+async def mycircles_quick_join(
+    request: Request, 
+    circle_id: str, 
+    game_type: str, 
+    player_id: str = Body(..., embed=True),
+    game_mode: Optional[str] = Body(None, embed=True),
+    ai_count: Optional[int] = Body(None, embed=True)
+):
     """
     MyCircles Quick Join: One-liner endpoint for mycircles integration.
     
     Automatically:
     1. Gets or creates the persistent lobby for circle_id + game_type
     2. Joins the player to the lobby
-    3. Returns game_id and redirect URL
+    3. Updates lobby settings (game_mode, ai_count) if player is host
+    4. Returns game_id and redirect URL
     
     This ensures ONE lobby per circle per game type - automagically!
+    
+    Request Body:
+    - player_id (required): Player ID from mycircles
+    - game_mode (optional): Game style - "classic" or "boricua" for dominoes, "best_of_5" or "best_of_10" for blackjack
+    - ai_count (optional): Number of AI players (0-3)
     
     Accessible from *.oblivio-company.com
     """
@@ -1218,6 +1272,17 @@ async def mycircles_quick_join(request: Request, circle_id: str, game_type: str,
     if game_type not in ["blackjack", "dominoes"]:
         raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
     
+    # Validate game_mode if provided
+    if game_mode is not None:
+        if game_type == "dominoes" and game_mode not in ["classic", "boricua"]:
+            raise HTTPException(status_code=400, detail=f"Invalid game_mode for dominoes: {game_mode}. Must be 'classic' or 'boricua'")
+        elif game_type == "blackjack" and game_mode not in ["best_of_5", "best_of_10"]:
+            raise HTTPException(status_code=400, detail=f"Invalid game_mode for blackjack: {game_mode}. Must be 'best_of_5' or 'best_of_10'")
+    
+    # Validate ai_count if provided
+    if ai_count is not None:
+        ai_count = max(0, min(3, ai_count))  # Clamp to 0-3
+    
     # Get or create persistent lobby (always exists, can have 0-4 players)
     lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
     
@@ -1225,14 +1290,16 @@ async def mycircles_quick_join(request: Request, circle_id: str, game_type: str,
     if not game_id:
         raise HTTPException(status_code=500, detail="Failed to get or create lobby")
     
-    # Join the lobby (if not already in it)
+    # Join the lobby (if not already in it) with optional settings
     current_players = lobby.get("players", [])
     if player_id not in current_players:
         join_result = await actor.join_game.remote(
             game_id,
             player_id,
             replace_ai=None,
-            as_spectator=False
+            as_spectator=False,
+            game_mode=game_mode,
+            ai_count=ai_count
         )
         
         if join_result.get("error"):
@@ -1265,12 +1332,99 @@ async def mycircles_quick_join(request: Request, circle_id: str, game_type: str,
         "player_id": player_id,
         "game_type": game_type,
         "game_mode": updated_lobby.get("game_mode"),
+        "ai_count": len(updated_lobby.get("ai_players", [])),
         "redirect_url": redirect_url,
         "players": players,
         "player_count": len(players),
         "status": updated_lobby.get("status", "waiting"),
         "min_players": updated_lobby.get("min_players"),
         "max_players": updated_lobby.get("max_players")
+    }
+
+@backend_bp.post("/mycircles/lobby/{circle_id}/{game_type}/settings")
+async def mycircles_update_lobby_settings(
+    request: Request,
+    circle_id: str,
+    game_type: str,
+    player_id: str = Body(..., embed=True),
+    game_mode: Optional[str] = Body(None, embed=True),
+    ai_count: Optional[int] = Body(None, embed=True)
+):
+    """
+    MyCircles Update Lobby Settings: Update game style and AI player count.
+    
+    Only the host can update lobby settings. If the player is not the host, returns an error.
+    
+    Request Body:
+    - player_id (required): Player ID (must be the host)
+    - game_mode (optional): Game style - "classic" or "boricua" for dominoes, "best_of_5" or "best_of_10" for blackjack
+    - ai_count (optional): Number of AI players (0-3)
+    
+    Accessible from *.oblivio-company.com
+    """
+    try:
+        actor = get_backend_actor_handle(request)
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error getting actor handle: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+    
+    # Validate game_type
+    if game_type not in ["blackjack", "dominoes"]:
+        raise HTTPException(status_code=400, detail=f"Invalid game_type: {game_type}. Must be 'blackjack' or 'dominoes'")
+    
+    # Get or create persistent lobby
+    lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
+    game_id = lobby.get("game_id")
+    if not game_id:
+        raise HTTPException(status_code=500, detail="Failed to get or create lobby")
+    
+    # Get current game state
+    game = await actor.get_game.remote(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Lobby not found")
+    
+    # Check if player is the host
+    if game.get("host_id") != player_id:
+        raise HTTPException(status_code=403, detail="Only the host can update lobby settings")
+    
+    # Check if game is in waiting state
+    if game.get("status") != "waiting":
+        raise HTTPException(status_code=400, detail="Can only update settings when lobby is waiting")
+    
+    # Update settings by joining with new settings (host can always update)
+    join_result = await actor.join_game.remote(
+        game_id,
+        player_id,
+        replace_ai=None,
+        as_spectator=False,
+        game_mode=game_mode,
+        ai_count=ai_count
+    )
+    
+    if join_result.get("error"):
+        raise HTTPException(status_code=400, detail=join_result.get("error"))
+    
+    # Get updated lobby info
+    updated_lobby = await actor.get_game.remote(game_id)
+    if not updated_lobby:
+        raise HTTPException(status_code=500, detail="Failed to retrieve updated lobby")
+    
+    # Filter out placeholder players from response
+    players = [p for p in updated_lobby.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
+    
+    return {
+        "game_id": game_id,
+        "game_type": game_type,
+        "game_mode": updated_lobby.get("game_mode"),
+        "ai_count": len(updated_lobby.get("ai_players", [])),
+        "players": players,
+        "player_count": len(players),
+        "status": updated_lobby.get("status", "waiting"),
+        "min_players": updated_lobby.get("min_players"),
+        "max_players": updated_lobby.get("max_players"),
+        "message": "Lobby settings updated successfully"
     }
 
 @backend_bp.get("/mycircles/lobby/{circle_id}/{game_type}")
@@ -1309,6 +1463,7 @@ async def mycircles_get_lobby(request: Request, circle_id: str, game_type: str):
         "game_id": game_id,
         "game_type": game_type,
         "game_mode": lobby.get("game_mode"),
+        "ai_count": len(lobby.get("ai_players", [])),
         "players": players,
         "player_count": len(players),
         "status": lobby.get("status", "waiting"),
