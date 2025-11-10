@@ -183,6 +183,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameTypeSelect.value === 'dominoes') {
             dominoModeSelect.style.display = 'block';
             blackjackModeSelect.style.display = 'none';
+            // Ensure boricua option is available
+            const boricuaOption = dominoGameModeSelect.querySelector('option[value="boricua"]');
+            if (!boricuaOption) {
+                const option = document.createElement('option');
+                option.value = 'boricua';
+                option.textContent = 'Boricua Style (First to 500, 2v2)';
+                dominoGameModeSelect.appendChild(option);
+            }
         } else if (gameTypeSelect.value === 'blackjack') {
             dominoModeSelect.style.display = 'none';
             blackjackModeSelect.style.display = 'block';
@@ -301,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'connection_success':
                     localGameType = data.game_type;
                     gameTitle.textContent = `${localGameType.charAt(0).toUpperCase() + localGameType.slice(1)} Game`;
-                    renderPlayers(data.players);
+                    renderPlayers(data.players || []);
                     
                     // Handle spectator mode
                     if (data.is_spectator) {
@@ -320,7 +328,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (gameStatus === 'waiting' && !data.is_spectator) {
                         startGameBtn.classList.remove('hidden');
                         const waitingMsg = document.getElementById('waiting-message');
-                        if (waitingMsg) waitingMsg.style.display = 'block';
+                        if (waitingMsg) {
+                            waitingMsg.style.display = 'block';
+                            // Update player count
+                            const validPlayers = (data.players || []).filter(p => {
+                                const pid = typeof p === 'string' ? p : (p?.player_id || p?.playerId || p?.id);
+                                return pid && !pid.startsWith('PLACEHOLDER_');
+                            });
+                            const maxPlayers = data.max_players || 4;
+                            const playerCountDisplay = document.getElementById('player-count-display');
+                            if (playerCountDisplay) {
+                                playerCountDisplay.textContent = `${validPlayers.length}/${maxPlayers}`;
+                            }
+                        }
                     } else {
                         startGameBtn.classList.add('hidden');
                         const waitingMsg = document.getElementById('waiting-message');
@@ -350,6 +370,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'player_connected':
                     if (data.players) {
                         renderPlayers(data.players);
+                        // Update player count in waiting message if visible
+                        const waitingMsg = document.getElementById('waiting-message');
+                        if (waitingMsg && waitingMsg.style.display !== 'none') {
+                            const validPlayers = data.players.filter(p => {
+                                const pid = typeof p === 'string' ? p : (p?.player_id || p?.playerId || p?.id);
+                                return pid && !pid.startsWith('PLACEHOLDER_');
+                            });
+                            const maxPlayers = currentGameState?.max_players || 4;
+                            const playerCountDisplay = document.getElementById('player-count-display');
+                            if (playerCountDisplay) {
+                                playerCountDisplay.textContent = `${validPlayers.length}/${maxPlayers}`;
+                            }
+                        }
                     } else {
                         addLogMessage(`Player ${data.player_id ? data.player_id.substring(0, 8) : 'Unknown'} connected/disconnected.`);
                     }
@@ -671,8 +704,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        const myTurn = state.players && state.current_turn_index !== undefined && state.players[state.current_turn_index] === localPlayerId;
-        const currentPlayerId = state.players && state.current_turn_index !== undefined ? state.players[state.current_turn_index] : null;
+        // Get current player ID - handle both string and object formats
+        let currentPlayerId = null;
+        if (state.players && state.current_turn_index !== undefined) {
+            const turnIndex = state.current_turn_index;
+            if (turnIndex >= 0 && turnIndex < state.players.length) {
+                const currentPlayer = state.players[turnIndex];
+                if (typeof currentPlayer === 'string') {
+                    currentPlayerId = currentPlayer;
+                } else if (typeof currentPlayer === 'object' && currentPlayer !== null) {
+                    currentPlayerId = currentPlayer.player_id || currentPlayer.playerId || currentPlayer.id;
+                }
+            }
+        }
+        
+        // Check if it's my turn - compare player IDs properly
+        const myTurn = currentPlayerId && localPlayerId && currentPlayerId === localPlayerId;
         
         if (myTurn) {
             turnDisplay.textContent = "🎯 YOUR TURN! 🎯";
@@ -699,8 +746,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function renderPlayers(players) {
+        // Filter out placeholder players before counting
+        const validPlayers = players.filter(p => {
+            let playerId;
+            if (typeof p === 'string') {
+                playerId = p;
+            } else if (typeof p === 'object' && p !== null) {
+                playerId = p.player_id || p.playerId || p.id || 'unknown';
+            } else {
+                return false;
+            }
+            return !playerId.startsWith('PLACEHOLDER_') && !playerId.match(/^player_\d+/);
+        });
+        
+        // Update player count display
+        const playerCountDisplay = document.getElementById('player-count-display');
+        if (playerCountDisplay) {
+            const maxPlayers = currentGameState?.max_players || 4;
+            playerCountDisplay.textContent = `${validPlayers.length}/${maxPlayers}`;
+        }
+        
         playersList.innerHTML = '<strong>Players:</strong> ';
-        players.forEach(p => {
+        validPlayers.forEach(p => {
             // Handle both string and object player formats
             let playerId;
             if (typeof p === 'string') {
@@ -718,13 +785,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return; // Skip rendering placeholder players
             }
             
-            // Also filter out any suspicious player IDs that might be incorrectly generated
-            // (e.g., "player_8" or "player_8gsko..." suggests a malformed ID)
-            // Match IDs that start with "player_" followed by digits (with optional suffix)
-            if (playerId && playerId.match(/^player_\d+/)) {
-                console.warn('Found suspicious player ID pattern (player_#), skipping display:', playerId);
-                return; // Skip rendering suspicious player IDs
-            }
+            // Note: We no longer filter out "player_#" patterns as they might be valid IDs
+            // The issue was likely in how player IDs were being generated/displayed
             
             // Extract AI and spectator status
             const isAI = (typeof p === 'object' && p !== null) ? (p.isAI || p.is_ai || false) : false;
@@ -1086,18 +1148,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function getPlayerDisplayName(playerId) {
-        if (!playerId) return 'Unknown';
+        if (!playerId) return 'Unknown Player';
         if (playerId === localPlayerId) return 'You';
-        
-        // Filter out suspicious player IDs - return a safe name instead
-        if (playerId.match(/^player_\d+/)) {
-            console.warn('Suspicious player ID detected in getPlayerDisplayName, using fallback:', playerId);
-            return 'Unknown Player';
-        }
         
         // Check if it's an AI player
         if (playerId && playerId.startsWith('AI_')) {
             return 'AutoBot';
+        }
+        
+        // Filter out placeholder players
+        if (playerId && (playerId.startsWith('PLACEHOLDER_') || playerId.startsWith('placeholder_'))) {
+            return 'Unknown Player';
         }
         
         // Try to find player in the players list DOM
