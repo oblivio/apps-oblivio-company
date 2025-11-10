@@ -719,8 +719,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // Also filter out any suspicious player IDs that might be incorrectly generated
-            // (e.g., "player_8" without a proper suffix suggests a malformed ID)
-            if (playerId && playerId.match(/^player_\d+$/)) {
+            // (e.g., "player_8" or "player_8gsko..." suggests a malformed ID)
+            // Match IDs that start with "player_" followed by digits (with optional suffix)
+            if (playerId && playerId.match(/^player_\d+/)) {
                 console.warn('Found suspicious player ID pattern (player_#), skipping display:', playerId);
                 return; // Skip rendering suspicious player IDs
             }
@@ -1087,6 +1088,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function getPlayerDisplayName(playerId) {
         if (!playerId) return 'Unknown';
         if (playerId === localPlayerId) return 'You';
+        
+        // Filter out suspicious player IDs - return a safe name instead
+        if (playerId.match(/^player_\d+/)) {
+            console.warn('Suspicious player ID detected in getPlayerDisplayName, using fallback:', playerId);
+            return 'Unknown Player';
+        }
         
         // Check if it's an AI player
         if (playerId && playerId.startsWith('AI_')) {

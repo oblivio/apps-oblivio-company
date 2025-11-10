@@ -778,9 +778,8 @@ async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_u
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     
-    # Build player list with AI status
+    # Build player list with AI status - return actual game state accurately
     players_list = []
-    import re
     for p in game.get('players', []):
         # Handle both string and dict player formats
         if isinstance(p, str):
@@ -792,16 +791,6 @@ async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_u
                 continue
         else:
             logger.warning(f"Invalid player format (not string or dict): {p}")
-            continue
-        
-        # Filter out placeholder players
-        if pid and (pid.startswith('PLACEHOLDER_') or pid.startswith('placeholder_')):
-            logger.debug(f"Filtering out placeholder player: {pid}")
-            continue
-        
-        # Filter out suspicious player IDs (e.g., "player_8" pattern)
-        if pid and re.match(r'^player_\d+$', pid):
-            logger.warning(f"Filtering out suspicious player ID pattern: {pid}")
             continue
         
         is_ai = await actor.is_ai_player.remote(game_id, pid)
@@ -1352,7 +1341,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
         game.get('game_type'), game.get('game_state'), player_id
     )
     
-    # Mark AI players and spectators
+    # Mark AI players and spectators - return actual game state accurately
     players_with_ai_status = []
     for p in game.get('players', []):
         # Handle both string and dict player formats
@@ -1367,17 +1356,6 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
                 continue
         else:
             logger.warning(f"Invalid player format (not string or dict): {p}")
-            continue
-        
-        # Filter out placeholder players
-        if pid and (pid.startswith('PLACEHOLDER_') or pid.startswith('placeholder_')):
-            logger.debug(f"Filtering out placeholder player: {pid}")
-            continue
-        
-        # Filter out suspicious player IDs (e.g., "player_8" pattern)
-        import re
-        if pid and re.match(r'^player_\d+$', pid):
-            logger.warning(f"Filtering out suspicious player ID pattern: {pid}")
             continue
         
         # Ensure player_id is set correctly
