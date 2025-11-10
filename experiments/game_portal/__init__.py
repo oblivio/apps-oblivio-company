@@ -814,18 +814,22 @@ async def _backend_poll_game_updates_impl(request: Request, game_id: str, last_u
     game_status = game.get('status', 'waiting')
     
     # Build response with all relevant info for external display
+    # Magical experience: lobbies persist even when empty (0 players)!
+    player_count = len(game.get('players', []))
+    max_players = game.get('max_players', 4)
+    
     response = {
         "game_id": game_id,
         "game_type": game.get('game_type'),
         "game_mode": game.get('game_mode'),
         "status": game_status,
-        "host_id": game.get('host_id'),
+        "host_id": game.get('host_id'),  # Will be None if empty - next player becomes host!
         "players": players_list,
-        "player_count": len(game.get('players', [])),
+        "player_count": player_count,  # Can be 0 - magical empty lobby!
         "spectator_count": len(game.get('spectators', [])),
         "min_players": game.get('min_players'),
-        "max_players": game.get('max_players'),
-        "can_start": game_status == 'waiting' and len(game.get('players', [])) >= game.get('min_players', 2),
+        "max_players": max_players,
+        "can_start": game_status == 'waiting' and player_count >= game.get('min_players', 2),
         "is_started": game_status in ['in_progress', 'round_finished', 'hand_finished'],
         "is_finished": game_status == 'finished',
         # Include basic game state info if game is in progress (without sensitive data)

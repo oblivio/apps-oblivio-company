@@ -759,11 +759,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return !playerId.startsWith('PLACEHOLDER_') && !playerId.match(/^player_\d+/);
         });
         
-        // Update player count display
+        // Update player count display - magical: shows 0/4 when empty!
         const playerCountDisplay = document.getElementById('player-count-display');
         if (playerCountDisplay) {
             const maxPlayers = currentGameState?.max_players || 4;
-            playerCountDisplay.textContent = `${validPlayers.length}/${maxPlayers}`;
+            const playerCount = validPlayers.length;
+            playerCountDisplay.textContent = `${playerCount}/${maxPlayers}`;
+            // Magical experience: empty lobby shows 0/4 and next player becomes host!
         }
         
         playersList.innerHTML = '<strong>Players:</strong> ';
