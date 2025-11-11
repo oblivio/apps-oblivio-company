@@ -959,9 +959,16 @@ async def _backend_lobby_create_or_join_impl(
         # Get or create persistent lobby (always exists, can have 0-4 players)
         lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
         
+        # Check if the lobby response contains an error
+        if isinstance(lobby, dict) and "error" in lobby:
+            error_msg = lobby.get("error", "Unknown error")
+            logger.error(f"Failed to get or create lobby for {circle_id}/{game_type}: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to get or create lobby: {error_msg}")
+        
         game_id = lobby.get("game_id")
         if not game_id:
-            raise HTTPException(status_code=500, detail="Failed to get or create lobby")
+            logger.error(f"Lobby response missing game_id for {circle_id}/{game_type}. Response: {lobby}")
+            raise HTTPException(status_code=500, detail="Failed to get or create lobby: lobby response missing game_id")
         
         # If player_id is provided, join the lobby (if not already in it) with optional settings
         action = "retrieved"  # Default action
@@ -1190,9 +1197,16 @@ async def backend_lobby_get(request: Request, circle_id: str, game_type: str):
         # Get or create persistent lobby
         lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
         
+        # Check if the lobby response contains an error
+        if isinstance(lobby, dict) and "error" in lobby:
+            error_msg = lobby.get("error", "Unknown error")
+            logger.error(f"Failed to get or create lobby for {circle_id}/{game_type}: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to get or create lobby: {error_msg}")
+        
         game_id = lobby.get("game_id")
         if not game_id:
-            raise HTTPException(status_code=500, detail="Failed to get or create lobby")
+            logger.error(f"Lobby response missing game_id for {circle_id}/{game_type}. Response: {lobby}")
+            raise HTTPException(status_code=500, detail="Failed to get or create lobby: lobby response missing game_id")
         
         # Filter out placeholder players from response
         players = [p for p in lobby.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
@@ -1294,9 +1308,17 @@ async def backend_lobby_update_settings(
     try:
         # Get or create persistent lobby
         lobby = await actor.get_or_create_lobby.remote(circle_id, game_type)
+        
+        # Check if the lobby response contains an error
+        if isinstance(lobby, dict) and "error" in lobby:
+            error_msg = lobby.get("error", "Unknown error")
+            logger.error(f"Failed to get or create lobby for {circle_id}/{game_type}: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to get or create lobby: {error_msg}")
+        
         game_id = lobby.get("game_id")
         if not game_id:
-            raise HTTPException(status_code=500, detail="Failed to get or create lobby")
+            logger.error(f"Lobby response missing game_id for {circle_id}/{game_type}. Response: {lobby}")
+            raise HTTPException(status_code=500, detail="Failed to get or create lobby: lobby response missing game_id")
         
         # Get current game state
         game = await actor.get_game.remote(game_id)

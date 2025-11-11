@@ -731,8 +731,8 @@ class ExperimentActor:
         
         # Save lobby to database (primary storage)
         if not await self._save_game_to_db(game):
-            logger.error(f"Failed to save lobby {game_id} to database")
-            return {"error": "Failed to create lobby"}
+            logger.error(f"Failed to save lobby {game_id} to database for circle {circle_id} ({game_type})")
+            return {"error": "Failed to create lobby: database save operation failed"}
         
         logger.info(f"Created/retrieved lobby {game_id} for circle {circle_id} ({game_type}, {game_mode}) with {len(game['players'])} players")
         
