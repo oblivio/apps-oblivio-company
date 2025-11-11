@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Portal</title>
+    <title>Game Portal - Play Games Online</title>
     <style>
         * {
             margin: 0;
@@ -19,9 +19,33 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
             background-attachment: fixed;
             color: #f7f7f7;
-            padding: 20px;
+            padding: 10px;
             position: relative;
             overflow-x: hidden;
+            font-size: 16px; /* Base font size for accessibility */
+        }
+        
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+                font-size: 18px; /* Larger base font on mobile */
+            }
+            
+            .container {
+                padding: 1.5rem !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 16px !important;
+            }
+            
+            h2 {
+                font-size: 1.75rem !important;
+            }
+            
+            h3 {
+                font-size: 1.25rem !important;
+            }
         }
         
         body::before {
@@ -120,7 +144,7 @@
         .container { 
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
-            padding: 3rem; 
+            padding: 2rem; 
             border-radius: 24px; 
             box-shadow: 
                 0 20px 60px rgba(0, 0, 0, 0.3),
@@ -131,6 +155,12 @@
             position: relative;
             z-index: 1;
             animation: fadeInUp 0.6s ease-out;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1.25rem;
+            }
         }
         
         @keyframes fadeInUp {
@@ -175,12 +205,12 @@
             margin: 2rem 0;
         }
         
-        .hand, .dealer-hand { 
-            border: 2px solid #e2e8f0; 
+        .hand { 
+            border: 3px solid #e2e8f0; 
             padding: 1.5rem; 
             margin: 1rem 0; 
             background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%); 
-            min-height: 80px; 
+            min-height: 120px; 
             display: flex;
             flex-direction: row;
             flex-wrap: wrap;
@@ -193,13 +223,23 @@
                 0 4px 12px rgba(0, 0, 0, 0.08);
             transition: all 0.3s ease;
             overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
         }
         
-        .hand:has(.card), .dealer-hand:has(.card) {
+        @media (max-width: 768px) {
+            .hand {
+                padding: 1.25rem;
+                gap: 1.25rem;
+                min-height: 180px;
+            }
+        }
+        
+        .hand:has(.card) {
             flex-wrap: nowrap;
         }
         
-        .hand:hover, .dealer-hand:hover {
+        .hand:hover {
             border-color: #cbd5e0;
             box-shadow: 
                 inset 0 2px 4px rgba(0, 0, 0, 0.05),
@@ -279,70 +319,50 @@
             font-weight: bold;
         }
         
-        .drop-zones {
-            display: flex;
-            gap: 1rem;
-            margin: 1rem 0;
+        /* Modal animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
-        .drop-zone {
-            flex: 1;
-            min-height: 140px;
-            border: 3px dashed #cbd5e0;
-            border-radius: 16px;
-            padding: 1.5rem;
-            text-align: center;
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 0.75rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
         
-        .drop-zone.drag-over {
-            border-color: #48bb78;
-            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
-            transform: scale(1.03);
-            box-shadow: 0 8px 24px rgba(72, 187, 120, 0.3);
-            border-style: solid;
+        @keyframes slideDownFadeIn {
+            from { 
+                transform: translateY(-20px); 
+                opacity: 0; 
+            }
+            to { 
+                transform: translateY(0); 
+                opacity: 1; 
+            }
         }
         
-        .drop-zone-label {
-            font-weight: 700;
-            color: #4a5568;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        @keyframes dropSuccess {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 8px 24px rgba(72, 187, 120, 0.3);
+            }
+            50% {
+                transform: scale(1.08);
+                box-shadow: 0 16px 40px rgba(72, 187, 120, 0.6);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 8px 24px rgba(72, 187, 120, 0.3);
+            }
         }
         
-        .drop-zone.drag-over .drop-zone-label {
-            color: #22543d;
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+            20%, 40%, 60%, 80% { transform: translateX(8px); }
         }
         
-        .drop-zone-end {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: #2d3748;
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            border-radius: 12px;
-            padding: 0.5rem 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .drop-zone.drag-over .drop-zone-end {
-            color: #22543d;
-            background: #c6f6d5;
-            transform: scale(1.1);
-        }
-        
-        /* Beautiful Domino Tiles */
+        /* Beautiful Domino Tiles - Mobile First */
         .domino {
             width: 70px;
             height: 140px;
@@ -350,7 +370,7 @@
             max-width: 70px;
             background-color: #f7f7f7;
             border: 1px solid #ccc;
-            border-radius: 10px;
+            border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
@@ -358,13 +378,51 @@
             flex-grow: 0;
             position: relative;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
             margin: 0;
+            touch-action: manipulation; /* Better touch handling */
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+            user-select: none; /* Prevent text selection during drag */
+            -webkit-user-select: none;
+        }
+        
+        /* Larger dominoes on mobile for easier tapping */
+        @media (max-width: 768px) {
+            .domino {
+                width: 90px;
+                height: 180px;
+                min-width: 90px;
+                max-width: 90px;
+                border-radius: 14px;
+            }
+            
+            .domino .half {
+                padding: 12px;
+            }
+            
+            .domino .pip {
+                width: 20px;
+                height: 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .domino {
+                width: 100px;
+                height: 200px;
+                min-width: 100px;
+                max-width: 100px;
+            }
         }
         
         .domino:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0,0,0,0.2);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .domino:active {
+            transform: translateY(-1px) scale(0.98);
+            transition: transform 0.1s ease;
         }
         
         .domino::after {
@@ -382,11 +440,70 @@
         .domino.playable {
             border: 3px solid #4caf50;
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4), 0 1px 2px rgba(0,0,0,0.1);
+            animation: playablePulse 2s ease-in-out infinite;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .domino.playable::before {
+            content: '✓';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #4caf50;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.5);
+            z-index: 10;
+        }
+        
+        @media (max-width: 768px) {
+            .domino.playable::before {
+                width: 36px;
+                height: 36px;
+                font-size: 20px;
+                top: -10px;
+                right: -10px;
+            }
         }
         
         .domino.playable:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5), 0 2px 4px rgba(0,0,0,0.2);
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 8px 24px rgba(76, 175, 80, 0.6), 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .domino.playable:active {
+            transform: translateY(-2px) scale(1.02);
+            transition: transform 0.1s ease;
+        }
+        
+        @keyframes playablePulse {
+            0%, 100% { 
+                box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4), 0 1px 2px rgba(0,0,0,0.1);
+            }
+            50% { 
+                box-shadow: 0 4px 20px rgba(76, 175, 80, 0.6), 0 1px 2px rgba(0,0,0,0.1);
+            }
+        }
+        
+        .domino.playable-left {
+            border-left: 5px solid #ff9800;
+        }
+        
+        .domino.playable-right {
+            border-right: 5px solid #ff9800;
+        }
+        
+        .domino.playable-both {
+            border-left: 5px solid #ff9800;
+            border-right: 5px solid #ff9800;
         }
         
         .domino.unplayable {
@@ -417,8 +534,11 @@
         }
         
         .domino.dragging {
-            opacity: 0.5;
-            transform: rotate(5deg);
+            opacity: 0.7;
+            transform: rotate(5deg) scale(1.1);
+            z-index: 1000;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+            cursor: grabbing !important;
         }
         
         .domino.board-tile {
@@ -451,6 +571,12 @@
             grid-template-rows: repeat(3, 1fr);
         }
         
+        @media (max-width: 768px) {
+            .half {
+                padding: 12px;
+            }
+        }
+        
         .pip {
             width: 16px;
             height: 16px;
@@ -458,6 +584,46 @@
             border-radius: 50%;
             align-self: center;
             justify-self: center;
+        }
+        
+        @media (max-width: 768px) {
+            .pip {
+                width: 20px;
+                height: 20px;
+            }
+        }
+        
+        /* Mobile-friendly buttons - minimum 44x44px touch target */
+        button {
+            min-height: 48px; /* Minimum touch target size */
+            min-width: 48px;
+            font-size: 1.1rem;
+            padding: 0.875rem 1.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            button {
+                min-height: 56px; /* Even larger on mobile */
+                font-size: 1.2rem;
+                padding: 1rem 2rem;
+                border-radius: 14px;
+            }
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
         
         /* Pip layouts */
@@ -670,16 +836,6 @@
         
         #start-game-btn:hover:not(:disabled) {
             box-shadow: 0 6px 20px rgba(72, 187, 120, 0.5);
-        }
-        
-        #hit-btn {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
-        }
-        
-        #stand-btn {
-            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
-            box-shadow: 0 4px 15px rgba(245, 101, 101, 0.4);
         }
         
         #draw-btn {
@@ -950,10 +1106,241 @@
         </div>
         
         <div id="lobby-view">
-            <h2>🎮 Game Portal 🎮</h2>
+            <!-- Game Portal Logo -->
+            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 2.5rem;">
+                <svg id="game-portal-logo" width="100%" viewBox="0 0 360 140" preserveAspectRatio="xMidYMid meet" style="max-width: 500px; height: auto; filter: drop-shadow(0 8px 16px rgba(102, 126, 234, 0.25));">
+                    <defs>
+                        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                            <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+                        </linearGradient>
+                        <radialGradient id="portalGradient" cx="50%" cy="50%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.7" />
+                            <stop offset="70%" style="stop-color:#764ba2;stop-opacity:0.4" />
+                            <stop offset="100%" style="stop-color:#f093fb;stop-opacity:0.1" />
+                        </radialGradient>
+                        <filter id="logoGlow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    
+                    <!-- Portal Circle - Centered in top portion -->
+                    <circle cx="180" cy="50" r="38" 
+                            fill="url(#portalGradient)" 
+                            stroke="url(#logoGradient)" 
+                            stroke-width="2.5"
+                            opacity="0.65"
+                            style="animation: portalPulse 3s ease-in-out infinite;">
+                        <animate attributeName="r" values="38;40;38" dur="2.5s" repeatCount="indefinite"/>
+                    </circle>
+                    
+                    <!-- Floating Particles -->
+                    <!-- Glowing particles -->
+                    <circle cx="120" cy="30" r="3" fill="#667eea" opacity="0.6" style="animation: float1 8s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="240" cy="25" r="2.5" fill="#764ba2" opacity="0.5" style="animation: float2 10s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.2;0.7;0.2" dur="4s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="100" cy="70" r="2" fill="#f093fb" opacity="0.6" style="animation: float3 12s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.5s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="260" cy="75" r="3.5" fill="#667eea" opacity="0.5" style="animation: float4 9s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3.5s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="140" cy="15" r="2" fill="#764ba2" opacity="0.4" style="animation: float5 11s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4.5s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="220" cy="85" r="2.5" fill="#f093fb" opacity="0.5" style="animation: float6 13s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3.2s" repeatCount="indefinite"/>
+                    </circle>
+                    
+                    <!-- Mini game icons floating -->
+                    <!-- Tiny domino -->
+                    <g transform="translate(150, 40)" style="animation: float7 14s ease-in-out infinite;">
+                        <rect x="-4" y="-6" width="8" height="12" rx="1" fill="#ffffff" stroke="#667eea" stroke-width="1" opacity="0.7">
+                            <animate attributeName="opacity" values="0.4;0.8;0.4" dur="5s" repeatCount="indefinite"/>
+                        </rect>
+                        <line x1="0" y1="-6" x2="0" y2="6" stroke="#667eea" stroke-width="0.8"/>
+                        <circle cx="-2" cy="-3" r="1" fill="#667eea"/>
+                        <circle cx="2" cy="3" r="1" fill="#667eea"/>
+                    </g>
+                    
+                    <!-- Tiny card -->
+                    <g transform="translate(210, 60)" style="animation: float8 9s ease-in-out infinite;">
+                        <rect x="-3" y="-5" width="6" height="10" rx="1" fill="#764ba2" stroke="#f093fb" stroke-width="1" opacity="0.6">
+                            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="4s" repeatCount="indefinite"/>
+                        </rect>
+                        <text x="0" y="2" font-size="5" font-weight="900" fill="white" text-anchor="middle" opacity="0.9">A</text>
+                    </g>
+                    
+                    <!-- Tiny dice -->
+                    <g transform="translate(110, 55)" style="animation: float9 11s ease-in-out infinite;">
+                        <rect x="-3" y="-3" width="6" height="6" rx="1" fill="#f093fb" stroke="#667eea" stroke-width="0.8" opacity="0.6">
+                            <animate attributeName="opacity" values="0.4;0.8;0.4" dur="3.5s" repeatCount="indefinite"/>
+                        </rect>
+                        <circle cx="-1.5" cy="-1.5" r="0.5" fill="white"/>
+                        <circle cx="1.5" cy="1.5" r="0.5" fill="white"/>
+                    </g>
+                    
+                    <!-- More glowing particles -->
+                    <circle cx="180" cy="20" r="2" fill="#667eea" opacity="0.4" style="animation: float10 15s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.2;0.6;0.2" dur="5.5s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="160" cy="80" r="3" fill="#764ba2" opacity="0.5" style="animation: float11 8s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3.8s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="250" cy="50" r="2.5" fill="#f093fb" opacity="0.4" style="animation: float12 10s ease-in-out infinite;">
+                        <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4.2s" repeatCount="indefinite"/>
+                    </circle>
+                    
+                    <!-- Game Portal Text - Clear separation below portal -->
+                    <text x="180" y="115" 
+                          font-family="'Segoe UI', 'Arial', sans-serif" 
+                          font-size="32" 
+                          font-weight="800" 
+                          fill="url(#logoGradient)"
+                          text-anchor="middle"
+                          letter-spacing="4px"
+                          filter="url(#logoGlow)"
+                          style="animation: textShimmer 3.5s ease-in-out infinite;">
+                        GAME PORTAL
+                        <animate attributeName="opacity" values="0.92;1;0.92" dur="3s" repeatCount="indefinite"/>
+                    </text>
+                </svg>
+            </div>
+            
+            <style>
+                @keyframes portalPulse {
+                    0%, 100% { 
+                        opacity: 0.65;
+                        transform: scale(1);
+                    }
+                    50% { 
+                        opacity: 0.8;
+                        transform: scale(1.03);
+                    }
+                }
+                
+                @keyframes float1 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    33% { transform: translate(15px, -20px) rotate(120deg); }
+                    66% { transform: translate(-10px, 15px) rotate(240deg); }
+                    100% { transform: translate(0, 0) rotate(360deg); }
+                }
+                
+                @keyframes float2 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    33% { transform: translate(-18px, 12px) rotate(-120deg); }
+                    66% { transform: translate(12px, -15px) rotate(-240deg); }
+                    100% { transform: translate(0, 0) rotate(-360deg); }
+                }
+                
+                @keyframes float3 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    50% { transform: translate(20px, 18px) rotate(180deg); }
+                    100% { transform: translate(0, 0) rotate(360deg); }
+                }
+                
+                @keyframes float4 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    25% { transform: translate(-15px, -12px) rotate(-90deg); }
+                    75% { transform: translate(18px, 20px) rotate(-270deg); }
+                    100% { transform: translate(0, 0) rotate(-360deg); }
+                }
+                
+                @keyframes float5 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    40% { transform: translate(12px, -18px) rotate(144deg); }
+                    80% { transform: translate(-15px, 10px) rotate(288deg); }
+                    100% { transform: translate(0, 0) rotate(360deg); }
+                }
+                
+                @keyframes float6 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    30% { transform: translate(-20px, 15px) rotate(-108deg); }
+                    60% { transform: translate(15px, -20px) rotate(-216deg); }
+                    100% { transform: translate(0, 0) rotate(-360deg); }
+                }
+                
+                @keyframes float7 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    33% { transform: translate(25px, -15px) rotate(120deg); }
+                    66% { transform: translate(-20px, 25px) rotate(240deg); }
+                    100% { transform: translate(0, 0) rotate(360deg); }
+                }
+                
+                @keyframes float8 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    50% { transform: translate(-22px, 18px) rotate(180deg); }
+                    100% { transform: translate(0, 0) rotate(360deg); }
+                }
+                
+                @keyframes float9 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    25% { transform: translate(18px, -22px) rotate(90deg); }
+                    75% { transform: translate(-18px, 22px) rotate(270deg); }
+                    100% { transform: translate(0, 0) rotate(360deg); }
+                }
+                
+                @keyframes float10 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    40% { transform: translate(-25px, 12px) rotate(-144deg); }
+                    80% { transform: translate(20px, -18px) rotate(-288deg); }
+                    100% { transform: translate(0, 0) rotate(-360deg); }
+                }
+                
+                @keyframes float11 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    50% { transform: translate(22px, 20px) rotate(180deg); }
+                    100% { transform: translate(0, 0) rotate(360deg); }
+                }
+                
+                @keyframes float12 {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    33% { transform: translate(-18px, -25px) rotate(-120deg); }
+                    66% { transform: translate(25px, 15px) rotate(-240deg); }
+                    100% { transform: translate(0, 0) rotate(-360deg); }
+                }
+                
+                @keyframes textShimmer {
+                    0%, 100% { 
+                        filter: drop-shadow(0 0 8px rgba(102, 126, 234, 0.4));
+                    }
+                    50% { 
+                        filter: drop-shadow(0 0 16px rgba(102, 126, 234, 0.7));
+                    }
+                }
+                
+                #game-portal-logo {
+                    animation: logoEntrance 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+                }
+                
+                @keyframes logoEntrance {
+                    from {
+                        opacity: 0;
+                        transform: scale(0.88) translateY(-15px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                }
+            </style>
+            
             <p style="color: #4a5568; font-size: 1.1rem; margin-bottom: 1.5rem; text-align: center; line-height: 1.6;">
-                Play fun games with family and friends! Create a game or join one using a Game ID.
+                Play games online with friends! Create a game or join one using a Game ID.
             </p>
+            
+            <!-- Error message display (hidden by default) -->
+            <div id="error-message" style="display: none; background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%); color: white; padding: 1rem 1.5rem; border-radius: 12px; margin: 1rem 0; text-align: center; font-weight: 600; box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);">
+                <span id="error-text"></span>
+            </div>
             
             <!-- User Identity Display -->
             <div id="user-identity" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 16px; margin: 1.5rem 0; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);">
@@ -970,25 +1357,25 @@
             <hr>
             
             <h3>✨ Create a New Game</h3>
-            <p style="color: #718096; font-size: 0.95rem; margin-bottom: 1rem;">Choose your game and invite others to play!</p>
-            <label for="game-type" style="font-size: 1.05rem; font-weight: 600;">Select Game Type:</label>
+            <p style="color: #718096; font-size: 0.95rem; margin-bottom: 1rem;">Choose a game and invite friends to play!</p>
+            <div style="margin-bottom: 1rem;">
+                <a href="new" id="quick-start-link" style="display: inline-block; background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; padding: 1rem 2rem; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4); transition: all 0.3s ease;">
+                    🚀 Quick Start - Create & Share
+                </a>
+                <p style="color: #718096; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;">
+                    Or customize your game below ⬇️
+                </p>
+            </div>
+            <label for="game-type" style="font-size: 1.05rem; font-weight: 600;">Select Game:</label>
             <select id="game-type" style="font-size: 1.05rem; padding: 0.75rem; font-weight: 600;" required>
-                <option value="">-- Choose Game Type --</option>
-                <option value="dominoes">🎲 Dominoes</option>
-                <option value="blackjack">🃏 Blackjack</option>
+                <option value="dominoes" selected>🎲 Dominito (Dominoes)</option>
+                <!-- Future games can be added here -->
             </select>
             <div id="domino-mode-select" style="margin-top: 0.75rem; display: block;">
                 <label for="domino-game-mode" style="font-size: 1.05rem; font-weight: 600;">Game Mode:</label>
                 <select id="domino-game-mode" style="font-size: 1.05rem; padding: 0.75rem;">
                     <option value="classic">Classic (Best of 5)</option>
                     <option value="boricua">Boricua Style (First to 500, 2v2)</option>
-                </select>
-            </div>
-            <div id="blackjack-mode-select" style="margin-top: 0.75rem; display: none;">
-                <label for="blackjack-game-mode" style="font-size: 1.05rem; font-weight: 600;">Game Mode:</label>
-                <select id="blackjack-game-mode" style="font-size: 1.05rem; padding: 0.75rem;">
-                    <option value="best_of_5">Best of 5 (First to 3 Wins)</option>
-                    <option value="best_of_10">Best of 10 (First to 5 Wins)</option>
                 </select>
             </div>
             <div style="margin-top: 0.75rem;">
@@ -1006,102 +1393,251 @@
             <button id="create-game-btn" style="font-size: 1.1rem; padding: 1rem 2.5rem; margin-top: 1rem;">🎮 Create Game</button>
             
             <hr style="margin: 2rem 0;">
-            <h3>👥 Join Existing Game</h3>
-            <p style="color: #718096; font-size: 0.95rem; margin-bottom: 1rem;">Enter the Game ID that someone shared with you!</p>
-            <label for="game-id-input" style="font-size: 1.05rem; font-weight: 600;">Game ID:</label>
-            <input type="text" id="game-id-input" placeholder="Enter Game ID (e.g., ABC123)" style="font-size: 1.1rem; padding: 0.875rem; text-transform: uppercase; letter-spacing: 0.1em;">
+            <h3>👥 Join a Game</h3>
+            <p style="color: #718096; font-size: 0.95rem; margin-bottom: 1rem;">Got a link from a friend? Paste it here or enter the Game ID!</p>
+            <label for="game-id-input" style="font-size: 1.05rem; font-weight: 600;">Game ID or Link:</label>
+            <input type="text" id="game-id-input" placeholder="Paste link or enter Game ID (e.g., ABC123)" style="font-size: 1.1rem; padding: 0.875rem; text-transform: uppercase; letter-spacing: 0.1em;">
             <button id="join-game-btn" style="font-size: 1.1rem; padding: 1rem 2.5rem; margin-top: 1rem;">🚀 Join Game</button>
+            <p style="color: #718096; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;">
+                💡 Tip: If you have a full link, just paste it - we'll extract the Game ID automatically!
+            </p>
         </div>
         <div id="game-view" class="hidden">
-            <h2 id="game-title">Game in Progress</h2>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.25rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
-                    <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">Game ID</div>
-                    <div style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;" id="game-id-display"></div>
-                    <div style="font-size: 0.75rem; opacity: 0.8; margin-bottom: 0.75rem;">Share this link to invite!</div>
-                    <button id="copy-link-btn" style="background: white; color: #667eea; font-weight: 700; padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.875rem; width: 100%;">📋 Copy Share Link</button>
-                </div>
-                <div style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; padding: 1.25rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);">
-                    <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.75rem;">You are</div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <svg id="player-identicon-display" width="48" height="48" style="border-radius: 50%; background: rgba(255, 255, 255, 0.2); padding: 4px; flex-shrink: 0;"></svg>
-                        <div style="flex: 1;">
-                            <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem;" id="player-display-name">Player</div>
-                            <div style="font-size: 0.7rem; opacity: 0.8; font-family: monospace;" id="player-id-display"></div>
-                        </div>
+            <!-- Top Bar with Game Info and Actions -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e2e8f0;">
+                <div style="flex: 1; min-width: 200px;">
+                    <h2 id="game-title" style="margin: 0; font-size: 1.75rem;">Game in Progress</h2>
+                    <div id="game-id-display" style="font-size: 1.1rem; font-weight: 700; color: #667eea; margin-top: 0.5rem; font-family: monospace; display: none;"></div>
+                    <div id="player-display-name" style="display: none;"></div>
+                    <div id="player-id-display" style="display: none;"></div>
+                    <svg id="player-identicon-display" width="56" height="56" style="display: none;"></svg>
+                    <div id="turn-display-card" style="background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); color: white; padding: 0.75rem 1.25rem; border-radius: 10px; box-shadow: 0 4px 12px rgba(246, 173, 85, 0.3); display: none; margin-top: 0.75rem; animation: pulse 2s ease-in-out infinite;">
+                        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.25rem;">🎯 Current Turn</div>
+                        <div style="font-size: 1.25rem; font-weight: 800;" id="turn-display"></div>
                     </div>
                 </div>
-                <div id="turn-display-card" style="background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(246, 173, 85, 0.3); display: none; animation: pulse 2s ease-in-out infinite;">
-                    <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 0.5rem;">🎯 Current Turn</div>
-                    <div style="font-size: 1.5rem; font-weight: 800; text-align: center;" id="turn-display"></div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <button id="game-info-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">ℹ️ Info</button>
+                    <button id="help-btn" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);">❓ Help</button>
+                    <button id="leave-game-btn" style="background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 1rem; box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);">🚪 Leave</button>
                 </div>
             </div>
             
             <button id="start-game-btn" style="margin: 1.5rem 0; font-size: 1.2rem; padding: 1.25rem 3rem;">🎮 Start Game</button>
-            <button id="leave-game-btn" style="margin: 0.5rem 0; font-size: 1rem; padding: 0.75rem 2rem; background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🚪 Leave Game</button>
             <p id="waiting-message" style="color: #718096; font-size: 1rem; margin-top: 1rem; text-align: center; display: none;">
                 ⏳ Waiting <span id="player-count-display">0/4</span> - Share the Game ID above!
             </p>
             
-            <div id="players-list" style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); padding: 1.25rem; border-radius: 12px; margin: 1.5rem 0; border: 2px solid #e2e8f0;"><strong>Players:</strong> </div>
-            <div id="blackjack-ui" class="hidden">
-                <h3>Dealer Hand (<span id="dealer-value"></span>)</h3>
-                <div class="dealer-hand" id="dealer-hand"></div>
-                <div id="blackjack-actions" style="margin-top: 1.5rem;">
-                    <p style="color: #4a5568; font-size: 1rem; margin-bottom: 1rem; font-weight: 600; text-align: center;">What would you like to do?</p>
-                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                        <button id="hit-btn" style="font-size: 1.2rem; padding: 1rem 2.5rem; min-width: 150px;">➕ Hit</button>
-                        <button id="stand-btn" style="font-size: 1.2rem; padding: 1rem 2.5rem; min-width: 150px;">✋ Stand</button>
-                    </div>
-                    <p id="blackjack-hint" style="color: #718096; font-size: 0.95rem; margin-top: 1rem; text-align: center; font-style: italic;"></p>
-                </div>
-                <div id="next-round-container" class="hidden" style="margin-top: 2rem; text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5); border: 3px solid rgba(255, 255, 255, 0.3); animation: fadeInUp 0.5s ease-out;">
-                    <h2 style="color: white; margin-bottom: 0.75rem; font-size: 1.75rem; font-weight: 800;">🎉 Round Complete! 🎉</h2>
-                    <div style="color: rgba(255, 255, 255, 0.95); margin-bottom: 1.5rem; font-size: 1.1rem; font-weight: 600; min-height: 100px;" id="round-ready-status">Waiting for players to be ready...</div>
-                    <button id="next-round-btn" style="background: white; color: #667eea; font-weight: 700; padding: 1.25rem 3rem; font-size: 1.2rem; border-radius: 12px; border: none; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); transition: all 0.3s ease; min-width: 250px;">▶ Ready for Next Round</button>
-                </div>
+            <!-- Tab Navigation -->
+            <div id="game-tabs" class="hidden" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; overflow-x: auto;">
+                <button class="game-tab active" data-tab="board" style="padding: 1rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid #667eea; color: #667eea; font-weight: 700; font-size: 1.1rem; cursor: pointer; white-space: nowrap; transition: all 0.3s ease;">🎯 Board</button>
+                <button class="game-tab" data-tab="players" style="padding: 1rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: #718096; font-weight: 600; font-size: 1.1rem; cursor: pointer; white-space: nowrap; transition: all 0.3s ease;">👥 Players</button>
+                <button class="game-tab" data-tab="log" style="padding: 1rem 1.5rem; background: transparent; border: none; border-bottom: 3px solid transparent; color: #718096; font-weight: 600; font-size: 1.1rem; cursor: pointer; white-space: nowrap; transition: all 0.3s ease;">📋 Log</button>
             </div>
-            <div id="dominoes-ui" class="hidden">
-                <div style="display: flex; gap: 1rem;">
-                    <div style="flex: 1;">
-                        <h3>Board - Open Ends: <span id="domino-ends"></span></h3>
-                        <div class="board-simple" id="domino-board"></div>
-                        <div class="drop-zones" style="display: flex; gap: 1rem; margin-top: 1rem;">
-                            <div class="drop-zone" id="drop-zone-left" data-side="left">
-                                <div class="drop-zone-label">Drop here for LEFT</div>
-                                <div class="drop-zone-end" id="left-end-display">-</div>
-                            </div>
-                            <div class="drop-zone" id="drop-zone-right" data-side="right">
-                                <div class="drop-zone-label">Drop here for RIGHT</div>
-                                <div class="drop-zone-end" id="right-end-display">-</div>
-                            </div>
-                        </div>
-                        <div id="domino-actions" style="margin-top: 1.5rem;">
-                            <p style="color: #4a5568; font-size: 1rem; margin-bottom: 1rem; font-weight: 600; text-align: center;">What would you like to do?</p>
-                            <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-                                <button id="draw-btn" style="font-size: 1.2rem; padding: 1rem 2.5rem; min-width: 150px;">🎴 Draw</button>
-                                <button id="pass-btn" style="font-size: 1.2rem; padding: 1rem 2.5rem; min-width: 150px;">⏭️ Pass</button>
-                            </div>
-                            <p id="domino-hint" style="color: #718096; font-size: 0.95rem; margin-top: 1rem; text-align: center; font-style: italic;"></p>
-                        </div>
-                        <div id="next-hand-container" class="hidden" style="margin-top: 1.5rem; text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); animation: fadeInUp 0.5s ease-out;">
-                            <h3 style="color: white; margin-bottom: 1rem; font-size: 1.5rem; font-weight: 800;">Hand Complete! 🎉</h3>
-                            <div style="color: rgba(255, 255, 255, 0.95); margin-bottom: 1rem; font-size: 1rem; font-weight: 600; min-height: 80px;" id="ready-status">Waiting for players to be ready...</div>
-                            <button id="next-hand-btn" style="background: white; color: #667eea; font-weight: 700; padding: 1rem 2.5rem; font-size: 1.1rem; border-radius: 12px; border: none; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); transition: all 0.3s ease; min-width: 220px;">▶ Ready for Next Hand</button>
-                        </div>
-                    </div>
-                    <div class="board-map-panel" style="flex: 0 0 300px;">
-                        <h3>Full Table Path</h3>
-                        <div class="board-map" id="board-map"></div>
-                    </div>
-                </div>
-            </div>
-            <h3 id="your-hand-title" style="display: none;">Your Hand (<span id="hand-value"></span>)</h3>
-            <div class="hand" id="player-hand" style="display: none;"></div>
             
-            <h3 id="game-log-title" style="display: none;">Game Log</h3>
-            <div id="game-log" style="display: none;"></div>
+            <!-- Tab Content -->
+            <div id="tab-content-board" class="tab-content active">
+                <div id="dominoes-ui" class="hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; font-size: 1.5rem;">Board - Open Ends: <span id="domino-ends" style="font-weight: 800; color: #667eea;"></span></h3>
+                    </div>
+                    <div class="board-simple" id="domino-board"></div>
+                    <!-- Your Hand Section - Integrated into game view -->
+                    <div id="your-hand-section" style="margin-top: 2rem; padding: 1.5rem; background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); border-radius: 16px; border: 2px solid #e2e8f0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                            <h4 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #1a1a2e;">Your Hand (<span id="hand-value-sticky"></span> tiles)</h4>
+                        </div>
+                        <!-- Smart Guidance Banner - Appears inside hand section -->
+                        <div id="action-guidance" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.25rem 1.5rem; border-radius: 12px; margin-bottom: 1.25rem; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35); animation: slideDownFadeIn 0.4s ease-out; position: relative; overflow: hidden;">
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%); pointer-events: none;"></div>
+                            <div style="display: flex; align-items: center; gap: 1rem; position: relative; z-index: 1;">
+                                <div style="font-size: 2rem; line-height: 1; animation: pulse 2s ease-in-out infinite;">✨</div>
+                                <div style="flex: 1;">
+                                    <p id="guidance-text" style="margin: 0; font-size: 1.05rem; line-height: 1.5; opacity: 0.98; font-weight: 500;"></p>
+                                </div>
+                                <button id="dismiss-guidance-btn" style="background: rgba(255, 255, 255, 0.25); color: white; border: 1.5px solid rgba(255, 255, 255, 0.4); border-radius: 8px; padding: 0.5rem 0.75rem; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease; flex-shrink: 0; min-width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">✕</button>
+                            </div>
+                        </div>
+                        <div id="hand-list-view" class="hand" style="display: flex; gap: 0.75rem; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; padding: 0.5rem 0; min-height: 160px; align-items: center; justify-content: flex-start; flex-wrap: wrap;">
+                            <!-- Hand tiles will be inserted here -->
+                        </div>
+                    </div>
+                    <div id="domino-actions" style="margin-top: 1.5rem;">
+                        <p style="color: #4a5568; font-size: 1rem; margin-bottom: 1rem; font-weight: 600; text-align: center;">What would you like to do?</p>
+                        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                            <button id="draw-btn" style="font-size: 1.2rem; padding: 1rem 2.5rem; min-width: 150px;">🎴 Draw</button>
+                            <button id="pass-btn" style="font-size: 1.2rem; padding: 1rem 2.5rem; min-width: 150px;">⏭️ Pass</button>
+                        </div>
+                        <p id="domino-hint" style="color: #718096; font-size: 0.95rem; margin-top: 1rem; text-align: center; font-style: italic;"></p>
+                    </div>
+                    <div id="next-hand-container" class="hidden" style="margin-top: 1.5rem; text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); animation: fadeInUp 0.5s ease-out;">
+                        <h3 style="color: white; margin-bottom: 1rem; font-size: 1.5rem; font-weight: 800;">Hand Complete! 🎉</h3>
+                        <div style="color: rgba(255, 255, 255, 0.95); margin-bottom: 1rem; font-size: 1rem; font-weight: 600; min-height: 80px;" id="ready-status">Waiting for players to be ready...</div>
+                        <button id="next-hand-btn" style="background: white; color: #667eea; font-weight: 700; padding: 1rem 2.5rem; font-size: 1.1rem; border-radius: 12px; border: none; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); transition: all 0.3s ease; min-width: 220px;">▶ Ready for Next Hand</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-content-players" class="tab-content" style="display: none;">
+                <div id="players-list" style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); padding: 1.5rem; border-radius: 12px; border: 2px solid #e2e8f0;"><strong style="font-size: 1.25rem;">Players:</strong> </div>
+            </div>
+            
+            <div id="tab-content-log" class="tab-content" style="display: none;">
+                <h3 id="game-log-title" style="font-size: 1.5rem; margin-bottom: 1rem;">Game Log</h3>
+                <div id="game-log" style="background: #f7fafc; padding: 1.5rem; border-radius: 12px; max-height: 400px; overflow-y: auto;"></div>
+            </div>
+            
+            
+            <!-- Modal Overlays -->
+            <div id="modal-overlay" class="hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 1rem; animation: fadeIn 0.2s ease-out;">
+                <div id="modal-content" style="background: white; border-radius: 20px; padding: 2rem; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); animation: slideUp 0.3s ease-out; position: relative;">
+                    <button id="modal-close-btn" style="position: absolute; top: 1rem; right: 1rem; background: #f7fafc; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.25rem; color: #4a5568; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">✕</button>
+                    <div id="modal-body"></div>
+                </div>
+            </div>
+            
+            <style>
+                /* Tab Styles */
+                .game-tab {
+                    transition: all 0.3s ease;
+                }
+                
+                .game-tab:hover {
+                    color: #667eea !important;
+                    background: rgba(102, 126, 234, 0.05);
+                }
+                
+                .game-tab.active {
+                    color: #667eea !important;
+                    border-bottom-color: #667eea !important;
+                }
+                
+                .tab-content {
+                    display: none;
+                }
+                
+                .tab-content.active {
+                    display: block;
+                }
+                
+                /* Your Hand Section Styles - Integrated into game view */
+                #your-hand-section {
+                    transition: all 0.3s ease;
+                }
+                
+                #your-hand-section .hand {
+                    display: flex;
+                    gap: 0.75rem;
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                    -webkit-overflow-scrolling: touch;
+                    padding: 0.5rem 0;
+                    min-height: 160px;
+                    align-items: center;
+                    justify-content: flex-start;
+                    flex-wrap: wrap;
+                }
+                
+                @media (max-width: 768px) {
+                    #your-hand-section {
+                        padding: 1rem;
+                    }
+                    
+                    #your-hand-section .hand {
+                        min-height: 180px;
+                    }
+                }
+                
+                /* Responsive hand styles - gallery removed */
+                #hand-list-view {
+                    display: flex;
+                    gap: 0.75rem;
+                    overflow-x: auto;
+                    overflow-y: hidden;
+                    -webkit-overflow-scrolling: touch;
+                    padding: 0.5rem 0;
+                    min-height: 160px;
+                    align-items: center;
+                    justify-content: flex-start;
+                    flex-wrap: wrap;
+                }
+                
+                @media (max-width: 768px) {
+                    #hand-list-view {
+                        min-height: 180px;
+                        gap: 1rem;
+                    }
+                }
+                
+                /* Modal Animations */
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                
+                @keyframes slideUp {
+                    from { transform: translateY(30px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                
+                #modal-close-btn:hover {
+                    background: #e2e8f0;
+                    transform: scale(1.1);
+                }
+                
+                @media (max-width: 768px) {
+                    #modal-content {
+                        padding: 1.5rem !important;
+                        border-radius: 16px !important;
+                        max-height: 85vh !important;
+                    }
+                }
+            </style>
+            <div id="welcome-message" class="hidden" style="background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; padding: 1.5rem; border-radius: 16px; margin: 1.5rem 0; box-shadow: 0 8px 24px rgba(72, 187, 120, 0.4); animation: fadeInUp 0.5s ease-out;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <h3 style="color: white; margin: 0 0 0.5rem 0; font-size: 1.5rem; font-weight: 800;">🎉 Welcome to Dominito!</h3>
+                        <p style="margin: 0 0 0.5rem 0; opacity: 0.95; font-size: 0.9rem;">Playing on Game Portal</p>
+                        <p style="margin: 0; opacity: 0.95; line-height: 1.6;">This is your first game! Look for <strong style="color: #c6f6d5;">green highlighted tiles</strong> - those are playable. Click them to choose LEFT or RIGHT and play! Need help? Click the ❓ Help button above!</p>
+                    </div>
+                    <button id="dismiss-welcome-btn" style="background: rgba(255, 255, 255, 0.2); color: white; border: 2px solid white; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; font-weight: 600; margin-left: 1rem; transition: all 0.3s ease;">Got it!</button>
+                </div>
+            </div>
+            
+            <style>
+                /* Enhanced guidance banner styles */
+                #action-guidance {
+                    transition: all 0.3s ease;
+                }
+                
+                #action-guidance:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 28px rgba(102, 126, 234, 0.45) !important;
+                }
+                
+                #dismiss-guidance-btn:hover {
+                    background: rgba(255, 255, 255, 0.35) !important;
+                    border-color: rgba(255, 255, 255, 0.6) !important;
+                    transform: scale(1.1);
+                }
+                
+                #dismiss-guidance-btn:active {
+                    transform: scale(0.95);
+                }
+                
+                @media (max-width: 768px) {
+                    #action-guidance {
+                        padding: 1rem 1.25rem !important;
+                    }
+                    #action-guidance p {
+                        font-size: 0.95rem !important;
+                    }
+                    #action-guidance .sparkle {
+                        font-size: 1.5rem !important;
+                    }
+                }
+            </style>
+            
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/jdenticon@3.3.0/dist/jdenticon.min.js" async
@@ -1117,16 +1653,29 @@
     (function() {
         // Check for URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-        const gameId = urlParams.get('game');
+        let gameId = urlParams.get('game');
         const gameType = urlParams.get('game_type'); // Optional: for creating game if it doesn't exist
         const gameMode = urlParams.get('game_mode') || 'classic'; // Optional: game mode
         const aiCount = parseInt(urlParams.get('ai_count')) || 2; // Optional: AI count (default 2)
         
+        // Validate gameId - reject "undefined", "null", empty strings, or invalid values
+        if (gameId) {
+            gameId = gameId.trim();
+            if (gameId === 'undefined' || gameId === 'null' || gameId === '' || gameId.length < 3) {
+                console.warn('Auto-join: Invalid game ID detected, cleaning URL:', gameId);
+                // Clean up the URL by removing invalid game parameter
+                urlParams.delete('game');
+                const cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                window.history.replaceState({}, '', cleanUrl);
+                gameId = null;
+            }
+        }
+        
         console.log('Auto-join check:', { gameId, gameType, gameMode, aiCount });
         
-        // Only activate if game parameter is present (ignore player_id parameter)
+        // Only activate if game parameter is present and valid (ignore player_id parameter)
         if (!gameId) {
-            console.log('Auto-join: No game parameter, skipping');
+            console.log('Auto-join: No valid game parameter, skipping');
             return; // No auto-join, let normal flow proceed
         }
         
@@ -1295,9 +1844,29 @@
                                 // Note: The created game_id might be different from the requested one
                                 // But we'll use the created one
                                 const actualGameId = createData.game_id;
+                                
+                                // Validate actualGameId before using it
+                                if (!actualGameId || actualGameId === 'undefined' || actualGameId === 'null' || typeof actualGameId !== 'string' || actualGameId.trim() === '') {
+                                    console.error('Auto-join: Invalid game_id in create response', actualGameId);
+                                    if (loadingDiv) loadingDiv.remove();
+                                    if (lobbyView) {
+                                        lobbyView.style.display = 'block';
+                                        lobbyView.classList.remove('hidden');
+                                    }
+                                    // Show error in UI
+                                    const errorDiv = document.getElementById('error-message');
+                                    const errorText = document.getElementById('error-text');
+                                    if (errorDiv && errorText) {
+                                        errorText.textContent = '❌ Game was created but received invalid game ID. Please try again.';
+                                        errorDiv.style.display = 'block';
+                                        setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
+                                    }
+                                    return;
+                                }
+                                
                                 console.log('Auto-join: Game created successfully', { actualGameId, requestedGameId: gameId.toUpperCase() });
                                 
-                                // Update URL with actual game ID
+                                // Update URL with actual game ID (only if valid)
                                 const newUrl = new URL(window.location);
                                 newUrl.searchParams.set('game', actualGameId);
                                 window.history.replaceState({}, '', newUrl);
@@ -1320,7 +1889,14 @@
                                     lobbyView.style.display = 'block';
                                     lobbyView.classList.remove('hidden');
                                 }
-                                alert(`❌ Could not create game: ${errorMsg || 'Unknown error'}`);
+                                // Show error in UI
+                                const errorDiv = document.getElementById('error-message');
+                                const errorText = document.getElementById('error-text');
+                                if (errorDiv && errorText) {
+                                    errorText.textContent = `❌ Could not create game: ${errorMsg || 'Unknown error'}`;
+                                    errorDiv.style.display = 'block';
+                                    setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
+                                }
                                 return;
                             }
                         } catch (createErr) {
@@ -1330,7 +1906,14 @@
                                 lobbyView.style.display = 'block';
                                 lobbyView.classList.remove('hidden');
                             }
-                            alert('❌ Could not create game. Please check your connection and try again.');
+                            // Show error in UI
+                            const errorDiv = document.getElementById('error-message');
+                            const errorText = document.getElementById('error-text');
+                            if (errorDiv && errorText) {
+                                errorText.textContent = '❌ Could not create game. Please check your connection and try again.';
+                                errorDiv.style.display = 'block';
+                                setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
+                            }
                             return;
                         }
                     } else if (!gameExists && !gameType) {
@@ -1341,7 +1924,26 @@
                             lobbyView.style.display = 'block';
                             lobbyView.classList.remove('hidden');
                         }
-                        alert(`❌ Game ${gameId.toUpperCase()} does not exist. Please provide game_type parameter (e.g., ?game=${gameId.toUpperCase()}&game_type=blackjack) to create it.`);
+                        // Show error in UI instead of alert
+                        const errorDiv = document.getElementById('error-message');
+                        const errorText = document.getElementById('error-text');
+                        if (errorDiv && errorText) {
+                            errorText.textContent = `❌ Game ${gameId.toUpperCase()} does not exist. Please create a new game or check the Game ID.`;
+                            errorDiv.style.display = 'block';
+                            // Auto-hide after 8 seconds
+                            setTimeout(() => {
+                                errorDiv.style.display = 'none';
+                            }, 8000);
+                        } else {
+                            // Show error in UI (already handled above, but keep as fallback)
+                            const errorDiv2 = document.getElementById('error-message');
+                            const errorText2 = document.getElementById('error-text');
+                            if (errorDiv2 && errorText2) {
+                                errorText2.textContent = `❌ Game ${gameId.toUpperCase()} does not exist. Please create a new game or check the Game ID.`;
+                                errorDiv2.style.display = 'block';
+                                setTimeout(() => { errorDiv2.style.display = 'none'; }, 8000);
+                            }
+                        }
                         return;
                     }
                     
@@ -1369,7 +1971,6 @@
                                 body: JSON.stringify({ 
                                     player_id: finalPlayerId,
                                     replace_ai: null,
-                                    as_spectator: false
                                 })
                             });
                             
@@ -1395,7 +1996,14 @@
                                         lobbyView.style.display = 'block';
                                         lobbyView.classList.remove('hidden');
                                     }
-                                    alert(`❌ Could not join game: ${errorMsg || 'Unknown error'}`);
+                                    // Show error in UI
+                                    const errorDiv = document.getElementById('error-message');
+                                    const errorText = document.getElementById('error-text');
+                                    if (errorDiv && errorText) {
+                                        errorText.textContent = `❌ Could not join game: ${errorMsg || 'Unknown error'}`;
+                                        errorDiv.style.display = 'block';
+                                        setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
+                                    }
                                     return;
                                 }
                             }
@@ -1418,7 +2026,14 @@
                             lobbyView.style.display = 'block';
                             lobbyView.classList.remove('hidden');
                         }
-                        alert('❌ Could not join game. Please try again.');
+                        // Show error in UI
+                        const errorDiv = document.getElementById('error-message');
+                        const errorText = document.getElementById('error-text');
+                        if (errorDiv && errorText) {
+                            errorText.textContent = '❌ Could not join game. Please try again.';
+                            errorDiv.style.display = 'block';
+                            setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
+                        }
                         return;
                     }
                     
@@ -1452,15 +2067,34 @@
                     // Wait for app.js to load and handle the WebSocket connection
                     // The existing connectWebSocket() function will be called when app.js loads
                     
-                } catch (err) {
-                    console.error('Auto-join error:', err);
-                    if (loadingDiv) loadingDiv.remove();
-                    if (lobbyView) {
-                        lobbyView.style.display = 'block';
-                        lobbyView.classList.remove('hidden');
+                    } catch (err) {
+                        console.error('Auto-join error:', err);
+                        if (loadingDiv) loadingDiv.remove();
+                        if (lobbyView) {
+                            lobbyView.style.display = 'block';
+                            lobbyView.classList.remove('hidden');
+                        }
+                        // Show error in UI instead of alert
+                        const errorDiv = document.getElementById('error-message');
+                        const errorText = document.getElementById('error-text');
+                        if (errorDiv && errorText) {
+                            errorText.textContent = '❌ Could not join game. Please check your connection and try again.';
+                            errorDiv.style.display = 'block';
+                            // Auto-hide after 5 seconds
+                            setTimeout(() => {
+                                errorDiv.style.display = 'none';
+                            }, 5000);
+                        } else {
+                            // Show error in UI
+                            const errorDiv = document.getElementById('error-message');
+                            const errorText = document.getElementById('error-text');
+                            if (errorDiv && errorText) {
+                                errorText.textContent = '❌ Could not join game. Please check your connection and try again.';
+                                errorDiv.style.display = 'block';
+                                setTimeout(() => { errorDiv.style.display = 'none'; }, 8000);
+                            }
+                        }
                     }
-                    alert('❌ Could not join game. Please check your connection and try again.');
-                }
             })();
         }
         

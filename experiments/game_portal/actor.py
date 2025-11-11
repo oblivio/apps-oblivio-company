@@ -7,7 +7,7 @@ import logging
 import random
 import string
 import pathlib
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 import ray
 from bson import ObjectId
@@ -19,10 +19,6 @@ experiment_dir = pathlib.Path(__file__).parent
 templates_dir = experiment_dir / "templates"
 
 # Import game logic modules
-from .blackjack_logic import (
-    create_new_game as create_blackjack_game,
-    play_move as play_blackjack_move
-)
 from .dominoes_logic import (
     create_new_game as create_dominoes_game,
     play_move as play_dominoes_move,
@@ -108,21 +104,23 @@ class ExperimentActor:
             logger.error(f"Error getting game {game_id} from database: {e}", exc_info=True)
             return None
     
-    async def _save_game_to_db(self, game: Dict[str, Any]) -> bool:
-        """Save a game to the database."""
+    async def _save_game_to_db(self, game: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """
+        Save a game to the database.
+        Returns: (success: bool, error_message: Optional[str])
+        """
         try:
             game_doc = game.copy()
             game_id = game_doc.get("game_id") or game_doc.get("_id")
             if not game_id:
-                logger.error("Cannot save game: no game_id or _id")
-                return False
+                error_msg = "Cannot save game: no game_id or _id"
+                logger.error(error_msg)
+                return False, error_msg
             
             game_doc["_id"] = game_id
-            # Ensure ai_players and spectators are in the document
+            # Ensure ai_players are in the document
             if "ai_players" not in game_doc:
                 game_doc["ai_players"] = []
-            if "spectators" not in game_doc:
-                game_doc["spectators"] = []
             
             # Convert datetime to ISO format for JSON serialization
             if game_doc.get("created_at") and isinstance(game_doc["created_at"], datetime):
@@ -132,15 +130,17 @@ class ExperimentActor:
             if game_doc.get("finished_at") and isinstance(game_doc["finished_at"], datetime):
                 game_doc["finished_at"] = game_doc["finished_at"].isoformat()
             
+            # Use replace_one with upsert=True to replace the entire document
             await self.db.games.replace_one(
                 {"_id": game_id},
                 game_doc,
                 upsert=True
             )
-            return True
+            return True, None
         except Exception as e:
-            logger.error(f"Error saving game to database: {e}", exc_info=True)
-            return False
+            error_msg = f"Database error: {type(e).__name__}: {str(e)}"
+            logger.error(f"Error saving game to database: {error_msg}", exc_info=True)
+            return False, error_msg
     
     def _generate_game_id(self) -> str:
         """Generate a unique game ID."""
@@ -150,8 +150,6 @@ class ExperimentActor:
         """Get minimum players required for a game type."""
         if game_type == "dominoes":
             return 4 if game_mode == "boricua" else 2
-        elif game_type == "blackjack":
-            return 2
         return 2
     
     def _get_max_players(self, game_type: str) -> int:
@@ -206,11 +204,10 @@ class ExperimentActor:
             "players": players,
             "status": "waiting",
             "game_state": None,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(),
             "min_players": min_players,
             "max_players": max_players,
             "ai_players": ai_players,
-            "spectators": []
         }
         
         # Add metadata if provided (e.g., circle_id for mycircles integration)
@@ -218,9 +215,10 @@ class ExperimentActor:
             game["metadata"] = metadata
         
         # Save to database (primary storage)
-        if not await self._save_game_to_db(game):
-            logger.error(f"Failed to save game {game_id} to database")
-            return {"error": "Failed to create game"}
+        success, db_error = await self._save_game_to_db(game)
+        if not success:
+            logger.error(f"Failed to save game {game_id} to database: {db_error}")
+            return {"error": f"Failed to create game: {db_error or 'database save operation failed'}"}
         
         logger.info(f"Created game {game_id} by {player_id} ({game_type}, {game_mode}) with {len(players)} players ({len(ai_players)} AI)")
         
@@ -233,9 +231,9 @@ class ExperimentActor:
             "ai_players": ai_players
         }
 
-    async def join_game(self, game_id: str, player_id: str, replace_ai: Optional[str] = None, as_spectator: bool = False, game_mode: Optional[str] = None, ai_count: Optional[int] = None) -> Dict[str, Any]:
+    async def join_game(self, game_id: str, player_id: str, replace_ai: Optional[str] = None, game_mode: Optional[str] = None, ai_count: Optional[int] = None) -> Dict[str, Any]:
         """
-        Join an existing game. Can replace AI or join as spectator if game is in progress.
+        Join an existing game. Can replace AI if game is in progress.
         
         If game_mode or ai_count are provided and the player is the host (or lobby is empty),
         the lobby settings will be updated.
@@ -246,11 +244,9 @@ class ExperimentActor:
         if not game:
             return {"error": "Game not found"}
         
-        # Ensure ai_players and spectators are in the game document
+        # Ensure ai_players are in the game document
         if "ai_players" not in game:
             game["ai_players"] = []
-        if "spectators" not in game:
-            game["spectators"] = []
         
         # Filter out placeholder players and temporary player IDs from the players list
         game["players"] = [
@@ -271,9 +267,6 @@ class ExperimentActor:
         # Check if already in game
         if player_id in game["players"]:
             return {"error": "You are already in this game"}
-        
-        if player_id in game.get("spectators", []):
-            return {"error": "You are already spectating this game"}
         
         # If game is waiting, join normally
         if game["status"] == "waiting":
@@ -378,14 +371,6 @@ class ExperimentActor:
                             logger.info(f"Updated game_mode from {old_mode} to {game_mode} for game {game_id}")
                         else:
                             logger.warning(f"Invalid game_mode {game_mode} for dominoes. Must be 'classic' or 'boricua'")
-                    elif game["game_type"] == "blackjack":
-                        if game_mode in ["best_of_5", "best_of_10"]:
-                            old_mode = game.get("game_mode")
-                            game["game_mode"] = game_mode
-                            settings_updated = True
-                            logger.info(f"Updated game_mode from {old_mode} to {game_mode} for game {game_id}")
-                        else:
-                            logger.warning(f"Invalid game_mode {game_mode} for blackjack. Must be 'best_of_5' or 'best_of_10'")
                 
                 # Update AI players if ai_count is provided
                 if ai_count is not None:
@@ -421,22 +406,8 @@ class ExperimentActor:
                 "replaced_ai": ai_to_replace if ai_to_replace else None
             }
         
-        # If game is in progress, handle mid-game joining
+        # If game is in progress, handle mid-game joining (only by replacing AI)
         if game["status"] in ["in_progress", "round_finished", "hand_finished"]:
-            if as_spectator:
-                # Join as spectator
-                if player_id not in game["spectators"]:
-                    game["spectators"].append(player_id)
-                logger.info(f"Player {player_id} joined as spectator in game {game_id}")
-                await self._save_game_to_db(game)
-                return {
-                    "game_id": game_id,
-                    "player_id": player_id,
-                    "game_type": game["game_type"],
-                    "game_mode": game["game_mode"],
-                    "role": "spectator"
-                }
-            
             # Try to replace an AI player
             if replace_ai:
                 ai_players = game.get("ai_players", [])
@@ -455,22 +426,11 @@ class ExperimentActor:
                     "player_id": player_id,
                     "game_type": game["game_type"],
                     "game_mode": game["game_mode"],
-                    "role": "player",
                     "replaced_ai": replace_ai
                 }
             
-            # No AI to replace, join as spectator
-            if player_id not in game["spectators"]:
-                game["spectators"].append(player_id)
-            logger.info(f"Player {player_id} joined as spectator in game {game_id} (no AI to replace)")
-            await self._save_game_to_db(game)
-            return {
-                "game_id": game_id,
-                "player_id": player_id,
-                "game_type": game["game_type"],
-                "game_mode": game["game_mode"],
-                "role": "spectator"
-            }
+            # No AI to replace - cannot join mid-game
+            return {"error": "Cannot join game in progress. You can only replace an AI player."}
         
         return {"error": "Cannot join game in current state"}
 
@@ -482,11 +442,9 @@ class ExperimentActor:
         if not game:
             return {"error": "Game not found"}
         
-        # Ensure ai_players and spectators are in the game document
+        # Ensure ai_players are in the game document
         if "ai_players" not in game:
             game["ai_players"] = []
-        if "spectators" not in game:
-            game["spectators"] = []
         
         # Filter out placeholder players first (before any checks)
         game["players"] = [p for p in game["players"] if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
@@ -535,9 +493,7 @@ class ExperimentActor:
         
         # Initialize game state
         try:
-            if game["game_type"] == "blackjack":
-                game_state = create_blackjack_game(game["players"], game["game_mode"])
-            elif game["game_type"] == "dominoes":
+            if game["game_type"] == "dominoes":
                 game_state = create_dominoes_game(game["players"], game["game_mode"])
             else:
                 return {"error": f"Unknown game type: {game['game_type']}"}
@@ -547,11 +503,12 @@ class ExperimentActor:
         
         game["game_state"] = game_state
         game["status"] = "in_progress"
-        game["started_at"] = datetime.utcnow()
+        game["started_at"] = datetime.now()
         
         # Save to database (primary storage)
-        if not await self._save_game_to_db(game):
-            logger.error(f"Failed to save game {game_id} start to database")
+        success, db_error = await self._save_game_to_db(game)
+        if not success:
+            logger.error(f"Failed to save game {game_id} start to database: {db_error}")
             return {"error": "Failed to start game"}
         
         logger.info(f"Game {game_id} started with {len(game['players'])} players ({len(game.get('ai_players', []))} AI)")
@@ -577,11 +534,9 @@ class ExperimentActor:
             return None
         
         game = game.copy()
-        # Ensure ai_players and spectators are in the game document
+        # Ensure ai_players are in the game document
         if "ai_players" not in game:
             game["ai_players"] = []
-        if "spectators" not in game:
-            game["spectators"] = []
         
         # Filter out placeholder players and temporary player IDs from the players list
         game["players"] = [
@@ -630,11 +585,9 @@ class ExperimentActor:
             async for game in cursor:
                 # Found a waiting lobby for this circle/game type
                 result = game.copy()
-                # Ensure ai_players and spectators are in the result
+                # Ensure ai_players are in the result
                 if "ai_players" not in result:
                     result["ai_players"] = []
-                if "spectators" not in result:
-                    result["spectators"] = []
                 return self._serialize_datetime(result)
         except Exception as e:
             logger.debug(f"Could not search database for waiting lobby: {e}")
@@ -674,11 +627,9 @@ class ExperimentActor:
             if existing_game.get("status") == "waiting":
                 # Reuse waiting lobby
                 result = existing_game.copy()
-                # Ensure ai_players and spectators are in the result
+                # Ensure ai_players are in the result
                 if "ai_players" not in result:
                     result["ai_players"] = []
-                if "spectators" not in result:
-                    result["spectators"] = []
                 # Filter out placeholder players
                 result["players"] = [p for p in result.get("players", []) if not (isinstance(p, str) and p.startswith("PLACEHOLDER_"))]
                 result["player_count"] = len(result["players"])
@@ -691,14 +642,13 @@ class ExperimentActor:
                 existing_game["players"] = []  # Clear players - they need to rejoin
                 existing_game["host_id"] = None
                 existing_game["ai_players"] = []
-                existing_game["spectators"] = []
                 # Save reset lobby to database
-                if not await self._save_game_to_db(existing_game):
-                    logger.warning(f"Failed to save reset lobby {game_id}")
+                success, db_error = await self._save_game_to_db(existing_game)
+                if not success:
+                    logger.warning(f"Failed to save reset lobby {game_id}: {db_error}")
                 # Return reset lobby
                 result = existing_game.copy()
                 result["ai_players"] = []
-                result["spectators"] = []
                 result["player_count"] = 0
                 return self._serialize_datetime(result)
         
@@ -706,8 +656,6 @@ class ExperimentActor:
         if game_mode is None:
             if game_type == "dominoes":
                 game_mode = "classic"
-            else:  # blackjack
-                game_mode = "best_of_5"
         
         min_players = self._get_min_players(game_type, game_mode)
         max_players = self._get_max_players(game_type)
@@ -721,18 +669,19 @@ class ExperimentActor:
             "players": [],  # Empty lobby - can have 0-4 players
             "status": "waiting",
             "game_state": None,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(),
             "min_players": min_players,
             "max_players": max_players,
             "metadata": {"circle_id": circle_id},
             "ai_players": [],
-            "spectators": []
         }
         
         # Save lobby to database (primary storage)
-        if not await self._save_game_to_db(game):
-            logger.error(f"Failed to save lobby {game_id} to database for circle {circle_id} ({game_type})")
-            return {"error": "Failed to create lobby: database save operation failed"}
+        success, db_error = await self._save_game_to_db(game)
+        if not success:
+            error_msg = f"Failed to create lobby: {db_error or 'database save operation failed'}"
+            logger.error(f"Failed to save lobby {game_id} to database for circle {circle_id} ({game_type}): {db_error}")
+            return {"error": error_msg}
         
         logger.info(f"Created/retrieved lobby {game_id} for circle {circle_id} ({game_type}, {game_mode}) with {len(game['players'])} players")
         
@@ -751,12 +700,6 @@ class ExperimentActor:
         
         return game.get("ai_players", [])
     
-    async def is_spectator(self, game_id: str, player_id: str) -> bool:
-        """Check if a player is a spectator."""
-        game = await self._get_game_from_db(game_id)
-        if not game:
-            return False
-        return player_id in game.get("spectators", [])
 
     async def is_ai_player(self, game_id: str, player_id: str) -> bool:
         """Check if a player is an AI."""
@@ -772,28 +715,7 @@ class ExperimentActor:
         
         sanitized = game_state.copy()
         
-        if game_type == "blackjack":
-            # Hide other players' hands
-            if "hands" in sanitized:
-                hands = sanitized["hands"].copy()
-                for pid, hand_data in hands.items():
-                    if pid != player_id:
-                        # Show only hand value, not cards
-                        hands[pid] = {
-                            "value": hand_data.get("value", 0),
-                            "status": hand_data.get("status", "playing"),
-                            "bet": hand_data.get("bet", 0)
-                        }
-                sanitized["hands"] = hands
-            
-            # Hide dealer's second card until all players are done
-            if "dealer_hand" in sanitized and sanitized.get("status") == "in_progress":
-                dealer_hand = sanitized["dealer_hand"].copy()
-                if len(dealer_hand) > 1:
-                    dealer_hand[1] = {"rank": "?", "suit": "?", "value": 0}
-                sanitized["dealer_hand"] = dealer_hand
-        
-        elif game_type == "dominoes":
+        if game_type == "dominoes":
             # Hide other players' hands
             if "hands" in sanitized:
                 hands = sanitized["hands"].copy()
@@ -813,11 +735,9 @@ class ExperimentActor:
         if not game:
             return {"error": "Game not found"}
         
-        # Ensure ai_players and spectators are in the game document
+        # Ensure ai_players are in the game document
         if "ai_players" not in game:
             game["ai_players"] = []
-        if "spectators" not in game:
-            game["spectators"] = []
         
         if game["status"] != "in_progress":
             return {"error": "Game is not in progress"}
@@ -833,9 +753,7 @@ class ExperimentActor:
         game_type = game["game_type"]
         
         try:
-            if game_type == "blackjack":
-                new_state = play_blackjack_move(game_state, player_id, move_data)
-            elif game_type == "dominoes":
+            if game_type == "dominoes":
                 new_state = play_dominoes_move(game_state, player_id, move_data)
             else:
                 return {"error": f"Unknown game type: {game_type}"}
@@ -848,9 +766,10 @@ class ExperimentActor:
                 
                 # If game is completely finished, save final state
                 if new_state.get("status") == "finished":
-                    game["finished_at"] = datetime.utcnow()
-                    if not await self._save_game_to_db(game):
-                        logger.warning(f"Failed to save finished game {game_id} to database")
+                    game["finished_at"] = datetime.now()
+                    success, db_error = await self._save_game_to_db(game)
+                    if not success:
+                        logger.error(f"Failed to save finished game {game_id}: {db_error}")
                 
                 # Automatically mark AI players as ready for next round/hand
                 if new_state.get("status") == "round_finished":
@@ -909,7 +828,9 @@ class ExperimentActor:
                         return {"success": True, "all_ready_for_next_hand": True}
             
             # Save game state to database after move
-            if not await self._save_game_to_db(game):
+            success, db_error = await self._save_game_to_db(game)
+            if not success:
+                logger.error(f"Failed to save game state for {game_id} after move: {db_error}")
                 logger.warning(f"Failed to save game {game_id} after move")
             
             return {"success": True}
@@ -957,9 +878,7 @@ class ExperimentActor:
         
         # Make AI move
         try:
-            if game_type == "blackjack":
-                move_data = self._get_ai_blackjack_move(game_state, current_player_id)
-            elif game_type == "dominoes":
+            if game_type == "dominoes":
                 move_data = self._get_ai_dominoes_move(game_state, current_player_id)
             else:
                 return {"continue": False}
@@ -990,21 +909,6 @@ class ExperimentActor:
         except Exception as e:
             logger.error(f"Error processing AI move: {e}", exc_info=True)
             return {"continue": False}
-
-    def _get_ai_blackjack_move(self, game_state: Dict[str, Any], player_id: str) -> Optional[Dict[str, Any]]:
-        """Get AI move for blackjack."""
-        hand_data = game_state.get("hands", {}).get(player_id, {})
-        hand_value = hand_data.get("value", 0)
-        status = hand_data.get("status", "playing")
-        
-        if status != "playing":
-            return None
-        
-        # Simple strategy: hit if below 17, stand otherwise
-        if hand_value < 17:
-            return {"action": "hit"}
-        else:
-            return {"action": "stand"}
 
     def _get_ai_dominoes_move(self, game_state: Dict[str, Any], player_id: str) -> Optional[Dict[str, Any]]:
         """Get AI move for dominoes."""
@@ -1086,19 +990,8 @@ class ExperimentActor:
         if game_state.get("status") != "round_finished":
             return {"error": "Game is not in round_finished state"}
         
-        # Create new round
-        if game["game_type"] == "blackjack":
-            new_state = create_blackjack_game(game["players"], game["game_mode"])
-        else:
-            return {"error": "start_next_round only supported for blackjack"}
-        
-        game["game_state"] = new_state
-        game["status"] = "in_progress"
-        
-        # Save to database
-        await self._save_game_to_db(game)
-        
-        return {"success": True}
+        # start_next_round is not used for dominoes (use start_next_hand instead)
+        return {"error": "start_next_round is not supported for dominoes. Use start_next_hand instead."}
 
     async def ready_for_next_hand(self, game_id: str, player_id: str) -> Dict[str, Any]:
         """Mark player as ready for next hand."""

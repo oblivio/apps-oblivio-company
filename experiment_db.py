@@ -255,6 +255,78 @@ class Collection:
             logger.error(f"Error in update_many: {e}", exc_info=True)
             raise
     
+    async def replace_one(
+        self,
+        filter: Dict[str, Any],
+        replacement: Dict[str, Any],
+        *args,
+        **kwargs
+    ) -> UpdateResult:
+        """
+        Replace a single document matching the filter.
+        
+        This matches MongoDB's replace_one() API exactly.
+        Replaces the entire document with the replacement document.
+        
+        Args:
+            filter: Dict of field/value pairs to match documents
+                   Example: {"_id": "doc_123"}
+            replacement: The replacement document (entire document, not update operators)
+            *args, **kwargs: Additional arguments passed to replace_one()
+                            (e.g., upsert=True/False)
+        
+        Returns:
+            UpdateResult with modified_count and upserted_id
+        
+        Example:
+            result = await collection.replace_one(
+                {"_id": "doc_123"},
+                {"_id": "doc_123", "name": "New Name", "status": "active"}
+            )
+        """
+        try:
+            # The underlying _collection is a ScopedCollectionWrapper
+            # It doesn't have replace_one, so we use delete + insert for true replacement
+            # This ensures proper experiment_id scoping
+            upsert = kwargs.get('upsert', False)
+            
+            # Try to delete first (if document exists)
+            delete_result = await self._collection.delete_one(filter)
+            
+            # If document was deleted or upsert is True, insert the replacement
+            if delete_result.deleted_count > 0 or upsert:
+                # Insert the replacement document (experiment_id will be auto-injected)
+                insert_result = await self._collection.insert_one(replacement)
+                # Return an UpdateResult-like object
+                from pymongo.results import UpdateResult
+                
+                # Create UpdateResult with proper structure
+                # modified_count = 1 if we deleted and inserted, 0 if we only inserted (upsert)
+                modified_count = 1 if delete_result.deleted_count > 0 else 0
+                upserted_id = insert_result.inserted_id if upsert and delete_result.deleted_count == 0 else None
+                
+                # Create a proper UpdateResult
+                # UpdateResult expects raw_result dict with specific keys
+                raw_result = {
+                    'ok': 1.0,
+                    'n': modified_count,
+                    'nModified': modified_count
+                }
+                if upserted_id:
+                    raw_result['upserted'] = upserted_id
+                
+                return UpdateResult(raw_result, acknowledged=True)
+            else:
+                # Document not found and upsert=False
+                from pymongo.results import UpdateResult
+                return UpdateResult(
+                    raw_result={'ok': 1.0, 'n': 0, 'nModified': 0},
+                    acknowledged=True
+                )
+        except Exception as e:
+            logger.error(f"Error in replace_one: {e}", exc_info=True)
+            raise
+    
     async def delete_one(
         self,
         filter: Dict[str, Any],

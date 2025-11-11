@@ -208,6 +208,20 @@ def play_move(game_state: dict, player_id: str, move_data: dict):
     elif action == "draw":
         if not game_state['boneyard']:
             raise ValueError("Boneyard is empty, you must pass.")
+        
+        # Check if player has playable tiles - if so, they must play, not draw
+        board = game_state['board']
+        if board:
+            left_end, right_end = get_open_ends(board)
+            has_playable = False
+            for tile in hand:
+                if tile[0] == left_end or tile[1] == left_end or tile[0] == right_end or tile[1] == right_end:
+                    has_playable = True
+                    break
+            
+            if has_playable:
+                raise ValueError("You have playable tiles! You must play a tile, not draw.")
+        
         new_tile = game_state['boneyard'].pop()
         hand.append(new_tile)
         game_state['log'].append(f"{player_id} drew a tile.")
