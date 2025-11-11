@@ -27,6 +27,11 @@
         "type": "regular",
         "keys": { "host_id": 1 },
         "options": { "sparse": true }
+      },
+      {
+        "name": "games_game_type_status_circle_index",
+        "type": "regular",
+        "keys": { "game_type": 1, "status": 1, "metadata.circle_id": 1 }
       }
     ]
   }
