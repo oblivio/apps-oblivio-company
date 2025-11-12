@@ -22,6 +22,8 @@ services:
       # Tell the Ray Client (api) where the Ray Server (ray-head) is.
       # "ray-head" is the service name, "10001" is the client port.
       - RAY_ADDRESS=ray://ray-head:10001
+      # PyTorch Model Path for data_imaging_advanced experiment
+      - WORKOUT_ENCODER_MODEL_PATH=/app/experiments/data_imaging_advanced/workout_encoder.pth
       # Backblaze B2 Configuration - loaded from .env via env_file above
     command: >
       uvicorn main:app --host 0.0.0.0 --port 10000 --reload
@@ -57,6 +59,8 @@ services:
       # and code IS /app. This aligns with our volume mount.
       - RAY_RUNTIME_ENV_WORKING_DIR=/app
       - RAY_NAMESPACE=modular_labs
+      # PyTorch Model Path for data_imaging_advanced experiment
+      - WORKOUT_ENCODER_MODEL_PATH=/app/experiments/data_imaging_advanced/workout_encoder.pth
       # AWS/B2 credentials - loaded from .env via env_file above
       # Mapping B2 env vars to AWS env vars for Ray compatibility
       - AWS_ENDPOINT_URL=${B2_ENDPOINT_URL:-}

@@ -22,6 +22,7 @@ ray[default]==2.50.0
 b2sdk
 numpy
 matplotlib
+torch
 aiofiles
 slowapi>=0.1.9
 jsonschema>=4.0.0

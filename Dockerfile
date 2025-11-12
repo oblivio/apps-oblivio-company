@@ -17,9 +17,14 @@ WORKDIR /app
 # Copy venv from builder  
 COPY --from=builder /opt/venv /opt/venv  
 ENV PATH="/opt/venv/bin:$PATH"  
-  
+
 # Copy your actual code  
-COPY . .  
+COPY . .
+
+# Note: The PyTorch model (workout_encoder.pth) should be generated offline
+# before building the Docker image. If it exists in experiments/data_imaging_advanced/,
+# it will be included in the image. To generate it, run:
+#   python experiments/data_imaging_advanced/train_model.py --output-path experiments/data_imaging_advanced/workout_encoder.pth
   
 # Create non-root user  
 RUN addgroup --system app && adduser --system --group app  

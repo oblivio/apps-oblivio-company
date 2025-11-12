@@ -1,0 +1,13 @@
+# --- Dependencies for PyTorch Autoencoder ---
+torch
+numpy
+matplotlib
+pillow
+httpx
+
+# --- Dependencies for actor.py (the actor) ---
+pymongo
+motor
+fastapi
+jinja2
+
