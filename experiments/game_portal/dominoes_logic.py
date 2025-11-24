@@ -5,6 +5,7 @@ Core game logic for Dominoes gameplay.
 
 import random
 from collections import deque
+from datetime import datetime
 
 
 def create_boneyard(max_pips=6):
@@ -96,7 +97,8 @@ def create_new_game(player_ids: list, game_mode: str = "classic"):
         "teams": teams,
         "team_scores": team_scores,
         "starting_player_id": start_player_id,
-        "log": [f"Game started ({game_mode.upper()} mode). {start_player_id} goes first."]
+        "log": [f"Game started ({game_mode.upper()} mode). {start_player_id} goes first."],
+        "move_history": []  # Track moves: [{player_id, tile, side, timestamp, move_number}]
     }
     
     # If a starting double was found, play it automatically
@@ -106,6 +108,14 @@ def create_new_game(player_ids: list, game_mode: str = "classic"):
         game_state['current_turn_index'] = (game_state['current_turn_index'] + 1) % len(player_ids)
         game_state['last_tile_played'] = start_tile
         game_state['log'].append(f"{start_player_id} started with {start_tile}.")
+        # Track the starting move
+        game_state['move_history'].append({
+            "player_id": start_player_id,
+            "tile": start_tile,
+            "side": "right",  # First tile goes on right
+            "timestamp": datetime.now().isoformat(),
+            "move_number": 1
+        })
     
     return game_state
 
@@ -249,22 +259,36 @@ def play_move(game_state: dict, player_id: str, move_data: dict):
         hand.remove(actual_tile)
         game_state['last_tile_played'] = tile
         
+        # Determine the final tile orientation after placement
+        final_tile = tile
         if not board:
             board.append(tile)
         elif side == 'left':
             if tile[1] == left_end:
                 board.insert(0, tile)
             elif tile[0] == left_end:
-                board.insert(0, (tile[1], tile[0]))
+                final_tile = (tile[1], tile[0])
+                board.insert(0, final_tile)
             else:
                 raise ValueError("Tile doesn't match the left end.")
         elif side == 'right':
             if tile[0] == right_end:
                 board.append(tile)
             elif tile[1] == right_end:
-                board.append((tile[1], tile[0]))
+                final_tile = (tile[1], tile[0])
+                board.append(final_tile)
             else:
                 raise ValueError("Tile doesn't match the right end.")
+        
+        # Track the move in history
+        move_number = len(game_state.get('move_history', [])) + 1
+        game_state['move_history'].append({
+            "player_id": player_id,
+            "tile": final_tile,  # Store the final orientation on board
+            "side": side,
+            "timestamp": datetime.now().isoformat(),
+            "move_number": move_number
+        })
         
         game_state['log'].append(f"{player_id} played {tile}.")
         

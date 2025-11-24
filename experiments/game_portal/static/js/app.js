@@ -151,6 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 5;
     const DISCONNECT_DELAY_MS = 60000; // 60 seconds
+    let autoStartTimer = null;
+    let autoStartCountdown = null;
     
     // --- UI Elements ---
     const lobbyView = document.getElementById('lobby-view');
@@ -366,15 +368,24 @@ document.addEventListener('DOMContentLoaded', () => {
                                 return pid && !pid.startsWith('PLACEHOLDER_');
                             });
                             const maxPlayers = data.max_players || 4;
+                            const minPlayers = data.min_players || 2;
                             const playerCountDisplay = document.getElementById('player-count-display');
                             if (playerCountDisplay) {
                                 playerCountDisplay.textContent = `${validPlayers.length}/${maxPlayers}`;
+                            }
+                            
+                            // Auto-start if minimum players are met
+                            if (validPlayers.length >= minPlayers) {
+                                startAutoStartCountdown(minPlayers, validPlayers.length);
+                            } else {
+                                clearAutoStartCountdown();
                             }
                         }
                     } else {
                         startGameBtn.classList.add('hidden');
                         const waitingMsg = document.getElementById('waiting-message');
                         if (waitingMsg) waitingMsg.style.display = 'none';
+                        clearAutoStartCountdown();
                     }
                     
                     // Hide copy link button if game has started
@@ -408,9 +419,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 return pid && !pid.startsWith('PLACEHOLDER_');
                             });
                             const maxPlayers = currentGameState?.max_players || 4;
+                            const minPlayers = currentGameState?.min_players || 2;
                             const playerCountDisplay = document.getElementById('player-count-display');
                             if (playerCountDisplay) {
                                 playerCountDisplay.textContent = `${validPlayers.length}/${maxPlayers}`;
+                            }
+                            
+                            // Auto-start if minimum players are met
+                            if (validPlayers.length >= minPlayers && currentGameState?.status === 'waiting') {
+                                startAutoStartCountdown(minPlayers, validPlayers.length);
+                            } else if (validPlayers.length < minPlayers) {
+                                clearAutoStartCountdown();
                             }
                         }
                     } else {
@@ -422,6 +441,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     startGameBtn.classList.add('hidden');
                     const waitingMsg2 = document.getElementById('waiting-message');
                     if (waitingMsg2) waitingMsg2.style.display = 'none';
+                    
+                    // Clear auto-start countdown
+                    clearAutoStartCountdown();
                     
                     // Hide copy link button
                     const gameInfoGrid = document.querySelector('div[style*="grid-template-columns"]');
@@ -817,8 +839,75 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // --- Auto-Start Countdown Functions ---
+    function startAutoStartCountdown(minPlayers, currentPlayers) {
+        // Clear any existing countdown
+        clearAutoStartCountdown();
+        
+        // Only auto-start if we have minimum players
+        if (currentPlayers < minPlayers) {
+            return;
+        }
+        
+        // Show countdown banner
+        let countdownBanner = document.getElementById('auto-start-banner');
+        if (!countdownBanner) {
+            countdownBanner = document.createElement('div');
+            countdownBanner.id = 'auto-start-banner';
+            countdownBanner.style.cssText = `
+                background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+                color: white;
+                padding: 1rem 1.5rem;
+                border-radius: 12px;
+                margin: 1rem 0;
+                text-align: center;
+                font-weight: 600;
+                box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+                animation: slideDownFadeIn 0.4s ease-out;
+            `;
+            const waitingMsg = document.getElementById('waiting-message');
+            if (waitingMsg && waitingMsg.parentNode) {
+                waitingMsg.parentNode.insertBefore(countdownBanner, waitingMsg.nextSibling);
+            }
+        }
+        
+        let countdown = 3; // 3 second countdown
+        countdownBanner.style.display = 'block';
+        countdownBanner.innerHTML = `
+            <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">🚀 Game will start automatically in <span id="countdown-number" style="font-weight: 800; font-size: 1.3rem;">${countdown}</span> seconds!</div>
+            <div style="font-size: 0.85rem; opacity: 0.9;">Or click "Start Game" to start immediately</div>
+        `;
+        
+        const countdownNumber = document.getElementById('countdown-number');
+        
+        autoStartCountdown = setInterval(() => {
+            countdown--;
+            if (countdownNumber) {
+                countdownNumber.textContent = countdown;
+            }
+            
+            if (countdown <= 0) {
+                clearAutoStartCountdown();
+                // Auto-start the game
+                sendStartGame();
+            }
+        }, 1000);
+    }
+    
+    function clearAutoStartCountdown() {
+        if (autoStartCountdown) {
+            clearInterval(autoStartCountdown);
+            autoStartCountdown = null;
+        }
+        const countdownBanner = document.getElementById('auto-start-banner');
+        if (countdownBanner) {
+            countdownBanner.style.display = 'none';
+        }
+    }
+    
     // --- Send WebSocket Actions ---
     function sendStartGame() {
+        clearAutoStartCountdown(); // Clear countdown when manually starting
         if (socket) socket.send(JSON.stringify({ type: 'start_game' }));
     }
     
@@ -864,6 +953,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (gameTabs) gameTabs.classList.add('hidden');
             dominoesUI.classList.add('hidden');
             if (turnDisplayCard) turnDisplayCard.style.display = 'none';
+            
+            // Check if we should auto-start
+            const validPlayers = (state.players || []).filter(p => {
+                const pid = typeof p === 'string' ? p : (p?.player_id || p?.playerId || p?.id);
+                return pid && !pid.startsWith('PLACEHOLDER_');
+            });
+            const minPlayers = state.min_players || 2;
+            if (validPlayers.length >= minPlayers) {
+                startAutoStartCountdown(minPlayers, validPlayers.length);
+            } else {
+                clearAutoStartCountdown();
+            }
+            
             return; // Don't render game UI when waiting
         }
         
@@ -1261,6 +1363,105 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDominoes(state, myTurn) {
         dominoesUI.classList.remove('hidden');
         
+        // Add focus to board and hand when it's someone's turn
+        // The dominoBoardDiv IS the board-simple container
+        const boardContainer = dominoBoardDiv;
+        const yourHandSection = document.getElementById('your-hand-section');
+        
+        // Get current player info for display
+        const currentPlayerId = state.players && state.current_turn_index !== undefined && 
+            state.current_turn_index >= 0 && state.current_turn_index < state.players.length ?
+            state.players[state.current_turn_index] : null;
+        const currentPlayerName = currentPlayerId ? getPlayerDisplayName(currentPlayerId) : 'Unknown';
+        
+        if (state.status === 'in_progress') {
+            if (myTurn) {
+                // It's the current player's turn - add strong focus
+                if (boardContainer) {
+                    boardContainer.classList.add('board-focus-active');
+                    boardContainer.classList.remove('board-focus-waiting');
+                }
+                if (yourHandSection) {
+                    yourHandSection.classList.add('hand-focus-active');
+                    yourHandSection.classList.remove('hand-focus-waiting');
+                }
+                
+                // Add "Your Turn" banner to board
+                let turnBanner = boardContainer?.querySelector('.turn-focus-banner');
+                if (!turnBanner && boardContainer) {
+                    turnBanner = document.createElement('div');
+                    turnBanner.className = 'turn-focus-banner';
+                    turnBanner.style.cssText = `
+                        position: absolute;
+                        top: -12px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+                        color: white;
+                        padding: 0.5rem 1.5rem;
+                        border-radius: 20px;
+                        font-weight: 700;
+                        font-size: 0.9rem;
+                        box-shadow: 0 4px 12px rgba(72, 187, 120, 0.5);
+                        z-index: 100;
+                        white-space: nowrap;
+                        animation: bannerPulse 2s ease-in-out infinite;
+                    `;
+                    turnBanner.textContent = '🎯 YOUR TURN - PLAY A TILE! 🎯';
+                    boardContainer.style.position = 'relative';
+                    boardContainer.appendChild(turnBanner);
+                }
+            } else {
+                // It's someone else's turn - add subtle focus
+                if (boardContainer) {
+                    boardContainer.classList.add('board-focus-waiting');
+                    boardContainer.classList.remove('board-focus-active');
+                    
+                    // Add "Waiting" banner
+                    let waitBanner = boardContainer.querySelector('.turn-focus-banner');
+                    if (!waitBanner) {
+                        waitBanner = document.createElement('div');
+                        waitBanner.className = 'turn-focus-banner';
+                        waitBanner.style.cssText = `
+                            position: absolute;
+                            top: -12px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%);
+                            color: white;
+                            padding: 0.5rem 1.5rem;
+                            border-radius: 20px;
+                            font-weight: 600;
+                            font-size: 0.85rem;
+                            box-shadow: 0 4px 12px rgba(246, 173, 85, 0.4);
+                            z-index: 100;
+                            white-space: nowrap;
+                        `;
+                        waitBanner.textContent = `⏳ Waiting for ${currentPlayerName}...`;
+                        boardContainer.style.position = 'relative';
+                        boardContainer.appendChild(waitBanner);
+                    } else {
+                        waitBanner.textContent = `⏳ Waiting for ${currentPlayerName}...`;
+                        waitBanner.style.background = 'linear-gradient(135deg, #f6ad55 0%, #ed8936 100%)';
+                    }
+                }
+                if (yourHandSection) {
+                    yourHandSection.classList.add('hand-focus-waiting');
+                    yourHandSection.classList.remove('hand-focus-active');
+                }
+            }
+        } else {
+            // Game not in progress - remove all focus
+            if (boardContainer) {
+                boardContainer.classList.remove('board-focus-active', 'board-focus-waiting');
+                const banner = boardContainer.querySelector('.turn-focus-banner');
+                if (banner) banner.remove();
+            }
+            if (yourHandSection) {
+                yourHandSection.classList.remove('hand-focus-active', 'hand-focus-waiting');
+            }
+        }
+        
         // Show welcome message for first-time users
         const welcomeMessage = document.getElementById('welcome-message');
         const hasSeenWelcome = localStorage.getItem('dominoes_welcome_seen');
@@ -1439,18 +1640,190 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         dominoBoardDiv.innerHTML = '';
+        
+        // Add helpful legend for newbies
+        if (state.board.length > 0) {
+            const legendDiv = document.createElement('div');
+            legendDiv.style.cssText = `
+                background: rgba(255, 255, 255, 0.15);
+                padding: 0.75rem 1rem;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+                font-size: 0.85rem;
+                color: rgba(255, 255, 255, 0.95);
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 1rem;
+                flex-wrap: wrap;
+            `;
+            legendDiv.innerHTML = `
+                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-weight: 700;">📋 Board Legend:</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="background: rgba(255, 255, 0, 0.3); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600;">🟡</span>
+                    <span>Playable Ends</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; color: white; font-size: 0.7rem;">#1</span>
+                    <span>Move Number</span>
+                </span>
+            `;
+            dominoBoardDiv.appendChild(legendDiv);
+        }
+        
         if (state.board.length === 0) {
             const emptyMsg = document.createElement('div');
             emptyMsg.style.cssText = 'text-align: center; color: rgba(255,255,255,0.7); font-style: italic; padding: 1rem;';
             emptyMsg.textContent = 'No tiles on the board yet. Play the first tile!';
             dominoBoardDiv.appendChild(emptyMsg);
         } else {
+            // Get move history to show who played what
+            const moveHistory = state.move_history || [];
+            
+            // Create a wrapper for better layout
+            const boardWrapper = document.createElement('div');
+            boardWrapper.style.cssText = 'display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: center; padding: 1rem;';
+            
             state.board.forEach((tile, index) => {
-                const tileSpan = document.createElement('span');
-                tileSpan.style.cssText = 'display: inline-block; padding: 0.5rem; background: rgba(255,255,255,0.9); border-radius: 4px; margin: 0.2rem; font-family: monospace; font-weight: bold;';
-                tileSpan.textContent = `[${tile[0]}|${tile[1]}]`;
-                dominoBoardDiv.appendChild(tileSpan);
+                // Find move info for this tile
+                const moveInfo = moveHistory[index] || null;
+                const playerId = moveInfo ? moveInfo.player_id : null;
+                const timestamp = moveInfo ? moveInfo.timestamp : null;
+                const moveNumber = moveInfo ? moveInfo.move_number : (index + 1);
+                
+                // Create container for tile with info
+                const tileContainer = document.createElement('div');
+                tileContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 0.5rem; position: relative;';
+                tileContainer.className = 'board-tile-container';
+                
+                // Check if this is a playable end (first or last tile)
+                const isPlayableEnd = index === 0 || index === state.board.length - 1;
+                
+                // Create visual domino tile
+                const dominoTile = createDominoTile(tile[0], tile[1]);
+                dominoTile.classList.add('board-tile');
+                dominoTile.style.cssText = 'margin: 0; cursor: default;';
+                
+                // Highlight playable ends
+                if (isPlayableEnd) {
+                    dominoTile.style.border = '3px solid rgba(255, 255, 0, 0.8)';
+                    dominoTile.style.boxShadow = '0 4px 15px rgba(255, 255, 0, 0.5), 0 1px 2px rgba(0,0,0,0.1)';
+                    if (index === 0) {
+                        dominoTile.style.borderLeft = '5px solid rgba(255, 255, 0, 1)';
+                    } else {
+                        dominoTile.style.borderRight = '5px solid rgba(255, 255, 0, 1)';
+                    }
+                }
+                
+                // Add player info badge
+                const infoBadge = document.createElement('div');
+                infoBadge.style.cssText = `
+                    position: absolute;
+                    top: -8px;
+                    right: -8px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    font-size: 0.65rem;
+                    font-weight: 700;
+                    padding: 0.2rem 0.4rem;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+                    z-index: 10;
+                    white-space: nowrap;
+                    min-width: 20px;
+                    text-align: center;
+                `;
+                infoBadge.textContent = `#${moveNumber}`;
+                infoBadge.title = moveInfo ? 
+                    `Move #${moveNumber} by ${getPlayerDisplayName(playerId)}${timestamp ? ` at ${new Date(timestamp).toLocaleTimeString()}` : ''}` :
+                    `Move #${moveNumber}`;
+                dominoTile.appendChild(infoBadge);
+                
+                // Add playable end indicator
+                if (isPlayableEnd) {
+                    const endIndicator = document.createElement('div');
+                    endIndicator.style.cssText = `
+                        position: absolute;
+                        ${index === 0 ? 'left: -12px;' : 'right: -12px;'}
+                        top: 50%;
+                        transform: translateY(-50%);
+                        background: rgba(255, 255, 0, 0.9);
+                        color: #1a1a2e;
+                        font-size: 0.6rem;
+                        font-weight: 800;
+                        padding: 0.15rem 0.3rem;
+                        border-radius: 4px;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                        z-index: 10;
+                        white-space: nowrap;
+                    `;
+                    endIndicator.textContent = index === 0 ? 'LEFT' : 'RIGHT';
+                    endIndicator.title = `This is the ${index === 0 ? 'left' : 'right'} playable end`;
+                    dominoTile.appendChild(endIndicator);
+                }
+                
+                // Add player name and time below tile
+                const infoDiv = document.createElement('div');
+                infoDiv.style.cssText = `
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 0.15rem;
+                    font-size: 0.7rem;
+                    color: rgba(255, 255, 255, 0.95);
+                    text-align: center;
+                    max-width: 90px;
+                    line-height: 1.2;
+                `;
+                
+                if (playerId) {
+                    const playerName = getPlayerDisplayName(playerId);
+                    const isAI = playerId.startsWith('AI_');
+                    const nameSpan = document.createElement('div');
+                    nameSpan.style.cssText = `
+                        font-weight: 600;
+                        color: ${isAI ? '#fbbf24' : '#ffffff'};
+                        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+                    `;
+                    nameSpan.textContent = isAI ? `🤖 ${playerName}` : playerName;
+                    infoDiv.appendChild(nameSpan);
+                    
+                    if (timestamp) {
+                        const timeSpan = document.createElement('div');
+                        timeSpan.style.cssText = 'font-size: 0.6rem; opacity: 0.85; color: rgba(255, 255, 255, 0.9);';
+                        const moveTime = new Date(timestamp);
+                        const now = new Date();
+                        const diffMs = now - moveTime;
+                        const diffSec = Math.floor(diffMs / 1000);
+                        const diffMin = Math.floor(diffSec / 60);
+                        
+                        if (diffSec < 10) {
+                            timeSpan.textContent = 'just now';
+                        } else if (diffSec < 60) {
+                            timeSpan.textContent = `${diffSec}s ago`;
+                        } else if (diffMin < 60) {
+                            timeSpan.textContent = `${diffMin}m ago`;
+                        } else {
+                            timeSpan.textContent = moveTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        }
+                        infoDiv.appendChild(timeSpan);
+                    }
+                } else {
+                    const unknownSpan = document.createElement('div');
+                    unknownSpan.style.cssText = 'font-weight: 600; opacity: 0.7;';
+                    unknownSpan.textContent = 'Unknown';
+                    infoDiv.appendChild(unknownSpan);
+                }
+                
+                tileContainer.appendChild(dominoTile);
+                tileContainer.appendChild(infoDiv);
+                boardWrapper.appendChild(tileContainer);
             });
+            
+            dominoBoardDiv.appendChild(boardWrapper);
         }
         
         renderBoardMap(state.board);
