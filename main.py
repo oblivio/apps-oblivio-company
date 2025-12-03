@@ -531,7 +531,19 @@ async def login_post(request: Request):
       "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1),
     }
     try:
-      token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+      # Ensure SECRET_KEY is a string (not bytes) for jwt.encode
+      secret_key = SECRET_KEY
+      if isinstance(secret_key, bytes):
+        secret_key = secret_key.decode('utf-8')
+      elif not isinstance(secret_key, str):
+        secret_key = str(secret_key)
+      
+      token = jwt.encode(payload, secret_key, algorithm="HS256")
+      # Ensure token is a string (some PyJWT versions return bytes)
+      if isinstance(token, bytes):
+        token = token.decode('utf-8')
+      elif not isinstance(token, str):
+        token = str(token)
     except Exception as e:
       logger.error(f"JWT encoding failed for user {email}: {e}", exc_info=True)
       raise HTTPException(500, "Login failed due to server error.")
@@ -642,7 +654,19 @@ if ENABLE_REGISTRATION:
         "email": email,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1),
       }
-      token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+      # Ensure SECRET_KEY is a string (not bytes) for jwt.encode
+      secret_key = SECRET_KEY
+      if isinstance(secret_key, bytes):
+        secret_key = secret_key.decode('utf-8')
+      elif not isinstance(secret_key, str):
+        secret_key = str(secret_key)
+      
+      token = jwt.encode(payload, secret_key, algorithm="HS256")
+      # Ensure token is a string (some PyJWT versions return bytes)
+      if isinstance(token, bytes):
+        token = token.decode('utf-8')
+      elif not isinstance(token, str):
+        token = str(token)
 
       response = RedirectResponse(safe_next_url, status_code=status.HTTP_303_SEE_OTHER)
       response.set_cookie(

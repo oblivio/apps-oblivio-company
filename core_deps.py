@@ -153,7 +153,20 @@ async def get_current_user(
         return None
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        # Ensure token is a string (not bytes) - PyJWT expects string tokens
+        if isinstance(token, bytes):
+            token = token.decode('utf-8')
+        elif not isinstance(token, str):
+            token = str(token)
+        
+        # Ensure SECRET_KEY is a string (not bytes) - PyJWT expects string keys
+        secret_key = SECRET_KEY
+        if isinstance(secret_key, bytes):
+            secret_key = secret_key.decode('utf-8')
+        elif not isinstance(secret_key, str):
+            secret_key = str(secret_key)
+        
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
         logger.debug(
             f"get_current_user: Token successfully decoded for user '{payload.get('email', 'N/A')}'."
         )

@@ -93,8 +93,21 @@ async def get_experiment_sub_user(
         return None
     
     try:
+        # Ensure token is a string (not bytes) - PyJWT expects string tokens
+        if isinstance(session_token, bytes):
+            session_token = session_token.decode('utf-8')
+        elif not isinstance(session_token, str):
+            session_token = str(session_token)
+        
+        # Ensure SECRET_KEY is a string (not bytes) - PyJWT expects string keys
+        secret_key = SECRET_KEY
+        if isinstance(secret_key, bytes):
+            secret_key = secret_key.decode('utf-8')
+        elif not isinstance(secret_key, str):
+            secret_key = str(secret_key)
+        
         # Decode session token (JWT)
-        payload = jwt.decode(session_token, SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(session_token, secret_key, algorithms=["HS256"])
         
         # Verify it's for this experiment
         if payload.get("experiment_slug") != slug_id:
@@ -302,7 +315,19 @@ async def create_experiment_session(
     }
     
     # Sign token
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    # Ensure SECRET_KEY is a string (not bytes) for jwt.encode
+    secret_key = SECRET_KEY
+    if isinstance(secret_key, bytes):
+        secret_key = secret_key.decode('utf-8')
+    elif not isinstance(secret_key, str):
+        secret_key = str(secret_key)
+    
+    token = jwt.encode(payload, secret_key, algorithm="HS256")
+    # Ensure token is a string (some PyJWT versions return bytes)
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+    elif not isinstance(token, str):
+        token = str(token)
     
     # Set cookie if response provided
     if response:
