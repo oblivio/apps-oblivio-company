@@ -405,14 +405,26 @@ async def register_post(
 ):
     """Handle registration."""
     try:
+        logger.info(f"Registration request received for username: '{username}'")
         # Create user via actor (this creates user in users collection with password hash and salt)
         result = await actor.register_user.remote(username, password)
         
+        logger.info(f"Registration result: {result.get('status')} - {result.get('error', result.get('message', 'No message'))}")
+        
         if result.get("status") == "error":
             error_msg = result.get('error', 'Registration failed')
+            logger.error(f"Registration failed for username '{username}': {error_msg}")
             # Check if request accepts JSON
             if request.headers.get("accept", "").startswith("application/json"):
                 return JSONResponse({"error": error_msg}, status_code=400)
+            redirect_url = f"/experiments/pwd_zero/login?error={error_msg}"
+            return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+        
+        if result.get("status") != "success":
+            logger.error(f"Unexpected registration result status: {result.get('status')}")
+            error_msg = "Registration failed with unknown error"
+            if request.headers.get("accept", "").startswith("application/json"):
+                return JSONResponse({"error": error_msg}, status_code=500)
             redirect_url = f"/experiments/pwd_zero/login?error={error_msg}"
             return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
         

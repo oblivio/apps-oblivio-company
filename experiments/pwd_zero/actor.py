@@ -259,7 +259,8 @@ class ExperimentActor:
         """Register a new user with enhanced security checks."""
         self._check_ready()
         try:
-            username_lower = username.lower()
+            username_lower = username.lower().strip() if username else ""
+            password = password.strip() if password else ""
             
             if not username_lower or len(username_lower) < 3:
                 return {"status": "error", "error": "Username must be at least 3 characters long"}
@@ -267,6 +268,8 @@ class ExperimentActor:
             # Basic password requirements (minimal)
             if not password or len(password) < 6:
                 return {"status": "error", "error": "Master password must be at least 6 characters long"}
+            
+            logger.debug(f"Registering user: '{username_lower}' (password length: {len(password)})")
             
             # Check password strength (advisory only, not blocking)
             strength_check = self.check_password_strength(password)
@@ -279,6 +282,7 @@ class ExperimentActor:
             # Generate salt and hash password
             salt = os.urandom(16)
             hashed_password = generate_password_hash(password)
+            logger.debug(f"Password hashed successfully for user '{username_lower}' (hash length: {len(hashed_password)})")
             
             # Store password history (for future password reuse prevention)
             password_history = [{
@@ -306,39 +310,64 @@ class ExperimentActor:
                 "mfa_verified_at": None
             }
             
+            logger.info(f"Attempting to insert user document for '{username_lower}' into database...")
             result = await self.db.users.insert_one(user_doc)
+            
+            if not result or not result.inserted_id:
+                logger.error(f"Failed to insert user: insert_one returned {result}")
+                return {"status": "error", "error": "Failed to create user account. Please try again."}
+            
             user_id = str(result.inserted_id)
+            logger.info(f"User '{username_lower}' successfully inserted with ID: {user_id}")
             
             # Log security event
-            await self._log_security_event(
-                user_id=user_id,
-                event_type="user_registered",
-                details={"username": username_lower, "password_strength": strength_check["strength"]}
-            )
+            try:
+                await self._log_security_event(
+                    user_id=user_id,
+                    event_type="user_registered",
+                    details={"username": username_lower, "password_strength": strength_check["strength"]}
+                )
+            except Exception as log_error:
+                logger.warning(f"Failed to log security event for user registration: {log_error}")
             
             # Generate encryption key for session
-            encryption_key = self.get_encryption_key_from_password(password, salt)
-            
-            return {
-                "status": "success",
-                "message": "Registration successful",
-                "user_id": user_id,
-                "encryption_key": encryption_key.decode()
-            }
+            try:
+                encryption_key = self.get_encryption_key_from_password(password, salt)
+                encryption_key_str = encryption_key.decode() if isinstance(encryption_key, bytes) else encryption_key
+                logger.info(f"Encryption key generated successfully for user '{username_lower}'")
+                
+                return {
+                    "status": "success",
+                    "message": "Registration successful",
+                    "user_id": user_id,
+                    "encryption_key": encryption_key_str
+                }
+            except Exception as key_error:
+                logger.error(f"Failed to generate encryption key for user '{username_lower}': {key_error}", exc_info=True)
+                return {"status": "error", "error": f"Failed to generate encryption key: {str(key_error)}"}
         except Exception as e:
-            logger.error(f"Error registering user: {e}", exc_info=True)
-            return {"status": "error", "error": str(e)}
+            logger.error(f"Error registering user '{username_lower}': {e}", exc_info=True)
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            return {"status": "error", "error": f"Registration failed: {str(e)}"}
 
     async def login_user(self, username: str, password: str, ip_address: Optional[str] = None) -> Dict[str, Any]:
         """Authenticate a user with account lockout protection and security logging."""
         self._check_ready()
         try:
-            username_lower = username.lower()
+            username_lower = username.lower().strip() if username else ""
+            password = password.strip() if password else ""
             
             if not username_lower or not password:
                 return {"status": "error", "error": "Username and password are required"}
             
+            logger.debug(f"Login attempt for username: '{username_lower}' (password length: {len(password)})")
             user = await self.db.users.find_one({"username": username_lower})
+            
+            if not user:
+                logger.debug(f"User not found: '{username_lower}'")
+            else:
+                logger.debug(f"User found: '{username_lower}', checking password hash...")
             
             # Check if account is locked
             if user and user.get("locked_until"):
@@ -363,7 +392,24 @@ class ExperimentActor:
                         )
             
             # Verify password
-            if not user or not check_password_hash(user["password"], password):
+            password_valid = False
+            if user:
+                try:
+                    stored_hash = user.get("password")
+                    if not stored_hash:
+                        logger.error(f"User '{username_lower}' has no password hash stored!")
+                        password_valid = False
+                    else:
+                        password_valid = check_password_hash(stored_hash, password)
+                        if not password_valid:
+                            logger.warning(f"Login failed: Password hash mismatch for user '{username_lower}' (stored hash type: {type(stored_hash)}, password length: {len(password)})")
+                        else:
+                            logger.debug(f"Password verified successfully for user '{username_lower}'")
+                except Exception as e:
+                    logger.error(f"Error checking password hash for user '{username_lower}': {e}", exc_info=True)
+                    password_valid = False
+            
+            if not user or not password_valid:
                 # Increment failed login attempts
                 if user:
                     failed_attempts = user.get("failed_login_attempts", 0) + 1
