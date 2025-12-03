@@ -861,8 +861,8 @@ async def get_or_create_demo_user_for_request(
     """
     # Check if platform user is demo user
     try:
-        from core_deps import get_current_user
-        platform_user = await get_current_user(request)
+        from core_deps import get_current_user_from_request
+        platform_user = await get_current_user_from_request(request)
         
         if platform_user:
             from config import DEMO_EMAIL_DEFAULT

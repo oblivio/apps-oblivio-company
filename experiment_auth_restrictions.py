@@ -25,7 +25,7 @@ from config import DEMO_EMAIL_DEFAULT
 
 # Import user detection utility
 from sub_auth import get_experiment_sub_user
-from core_deps import get_experiment_config, get_current_user
+from core_deps import get_experiment_config, get_current_user_from_request
 from experiment_db import get_experiment_db
 
 
@@ -92,7 +92,7 @@ async def require_non_demo_user(request: Request) -> Dict[str, Any]:
     
     # First, try platform auth
     try:
-        platform_user = await get_current_user(request)
+        platform_user = await get_current_user_from_request(request)
         if platform_user:
             user = platform_user
     except HTTPException:
@@ -173,7 +173,7 @@ async def block_demo_users(request: Request):
     
     # Check platform auth
     try:
-        platform_user = await get_current_user(request)
+        platform_user = await get_current_user_from_request(request)
         if platform_user:
             user = platform_user
     except HTTPException:

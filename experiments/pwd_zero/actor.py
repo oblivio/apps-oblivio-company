@@ -138,11 +138,11 @@ class ExperimentActor:
         entropy = ExperimentActor.calculate_password_entropy(password)
         
         # Length checks
-        if len(password) < 8:
-            issues.append("Password must be at least 8 characters long")
-        elif len(password) >= 12:
+        if len(password) < 6:
+            issues.append("Password must be at least 6 characters long")
+        elif len(password) >= 8:
             score += 1
-        elif len(password) >= 16:
+        elif len(password) >= 12:
             score += 2
         
         # Character variety checks
@@ -171,10 +171,10 @@ class ExperimentActor:
         else:
             score += 1
         
-        # Entropy checks
-        if entropy < 30:
-            issues.append("Password is too predictable")
-        elif entropy >= 50:
+        # Entropy checks (advisory only)
+        if entropy < 20:
+            issues.append("Password is too predictable (consider using a longer password)")
+        elif entropy >= 40:
             score += 1
         
         # Common patterns
@@ -191,20 +191,21 @@ class ExperimentActor:
                 score = max(0, score - 1)
                 break
         
-        # Determine strength level
-        if score <= 2 or entropy < 30:
+        # Determine strength level (more lenient thresholds)
+        if score <= 1 or entropy < 15:
             strength = "very_weak"
-        elif score <= 3 or entropy < 40:
+        elif score <= 2 or entropy < 25:
             strength = "weak"
-        elif score <= 4 or entropy < 50:
+        elif score <= 3 or entropy < 35:
             strength = "medium"
-        elif score <= 5 or entropy < 60:
+        elif score <= 4 or entropy < 45:
             strength = "strong"
         else:
             strength = "very_strong"
         
+        # Only require minimum length - everything else is advisory
         return {
-            "valid": len(issues) == 0 and entropy >= 30,
+            "valid": len(password) >= 6,  # Only check minimum length
             "score": score,
             "entropy": round(entropy, 2),
             "issues": issues,
@@ -263,18 +264,12 @@ class ExperimentActor:
             if not username_lower or len(username_lower) < 3:
                 return {"status": "error", "error": "Username must be at least 3 characters long"}
             
-            # Enhanced master password requirements
-            if not password or len(password) < 12:
-                return {"status": "error", "error": "Master password must be at least 12 characters long"}
+            # Basic password requirements (minimal)
+            if not password or len(password) < 6:
+                return {"status": "error", "error": "Master password must be at least 6 characters long"}
             
-            # Check password strength
+            # Check password strength (advisory only, not blocking)
             strength_check = self.check_password_strength(password)
-            if not strength_check["valid"]:
-                issues = "; ".join(strength_check["issues"])
-                return {
-                    "status": "error",
-                    "error": f"Master password is too weak. {issues}. Minimum entropy: 30 bits (current: {strength_check['entropy']:.1f} bits)"
-                }
             
             # Check if user already exists
             existing_user = await self.db.users.find_one({"username": username_lower})
@@ -1023,14 +1018,15 @@ class ExperimentActor:
             if check_password_hash(user["password"], new_password):
                 return {"status": "error", "error": "New password must be different from current password"}
             
-            # Check password strength
+            # Check password strength (advisory only, not blocking)
             strength_check = self.check_password_strength(new_password)
             if not strength_check["valid"]:
-                issues = "; ".join(strength_check["issues"])
-                return {
-                    "status": "error",
-                    "error": f"New password is too weak. {issues}. Minimum entropy: 30 bits (current: {strength_check['entropy']:.1f} bits)"
-                }
+                # Only enforce minimum length
+                if len(new_password) < 6:
+                    return {
+                        "status": "error",
+                        "error": "New password must be at least 6 characters long"
+                    }
             
             # Check password history (prevent reusing last 5 passwords)
             password_history = user.get("password_history", [])

@@ -221,6 +221,41 @@ async def get_current_user(
         return None
 
 
+async def get_current_user_from_request(request: Request) -> Optional[Dict[str, Any]]:
+    """
+    Helper function to get current user from a Request object.
+    This is useful when you need to call get_current_user outside of FastAPI dependency injection.
+    
+    Args:
+        request: FastAPI Request object
+    
+    Returns:
+        Optional[Dict[str, Any]]: User dict if authenticated, None otherwise
+    """
+    token = request.cookies.get("token")
+    if not token:
+        logger.debug("get_current_user_from_request: No 'token' cookie found.")
+        return None
+    
+    try:
+        payload = decode_jwt_token(token, SECRET_KEY)
+        logger.debug(
+            f"get_current_user_from_request: Token successfully decoded for user '{payload.get('email', 'N/A')}'."
+        )
+        return payload
+    except jwt.ExpiredSignatureError:
+        logger.info("get_current_user_from_request: Authentication token has expired.")
+        return None
+    except jwt.InvalidTokenError as e:
+        logger.debug(f"get_current_user_from_request: Invalid JWT token presented: {e}")
+        return None
+    except Exception as e:
+        logger.error(
+            f"get_current_user_from_request: Unexpected error decoding JWT: {e}", exc_info=True
+        )
+        return None
+
+
 async def require_admin(
     user: Optional[Mapping[str, Any]] = Depends(get_current_user),
     authz: AuthorizationProvider = Depends(get_authz_provider),
