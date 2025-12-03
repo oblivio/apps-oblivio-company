@@ -352,7 +352,7 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
                     """
                     async def hybrid_auth_dep(request: Request) -> Dict[str, Any]:
                         # Import dependencies at function level to avoid circular imports
-                        from core_deps import SECRET_KEY, get_experiment_config, _validate_next_url, get_authz_provider
+                        from core_deps import SECRET_KEY, get_experiment_config, _validate_next_url, get_authz_provider, decode_jwt_token
                         from experiment_db import get_experiment_db
                         import jwt as jwt_lib
                         
@@ -361,7 +361,7 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
                         token = request.cookies.get("token")
                         if token:
                             try:
-                                payload = jwt_lib.decode(token, SECRET_KEY, algorithms=["HS256"])
+                                payload = decode_jwt_token(token, SECRET_KEY)
                                 user_id = payload.get("user_id")
                                 email = payload.get("email")
                                 is_admin = payload.get("is_admin", False)
@@ -610,7 +610,7 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
                         # Final admin check (if token exists)
                         if token:
                             try:
-                                payload = jwt_lib.decode(token, SECRET_KEY, algorithms=["HS256"])
+                                payload = decode_jwt_token(token, SECRET_KEY)
                                 user_id = payload.get("user_id")
                                 email = payload.get("email")
                                 

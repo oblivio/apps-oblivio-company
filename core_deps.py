@@ -121,6 +121,56 @@ def _validate_next_url(next_url: Optional[str]) -> str:
     return "/"
 
 
+def decode_jwt_token(token: Any, secret_key: str) -> Dict[str, Any]:
+    """
+    Helper function to decode JWT tokens with automatic fallback to bytes format.
+    
+    Handles cases where PyJWT might expect bytes instead of strings (version-specific behavior).
+    
+    Args:
+        token: JWT token (can be str, bytes, or other)
+        secret_key: Secret key for decoding (str)
+    
+    Returns:
+        Decoded JWT payload as dict
+    
+    Raises:
+        jwt.ExpiredSignatureError: If token has expired
+        jwt.InvalidTokenError: If token is invalid
+    """
+    # Normalize token to string first
+    if isinstance(token, bytes):
+        token_str = token.decode('utf-8')
+    elif isinstance(token, str):
+        token_str = token
+    else:
+        token_str = str(token)
+    
+    # Normalize secret_key to string
+    if isinstance(secret_key, bytes):
+        secret_key_str = secret_key.decode('utf-8')
+    elif isinstance(secret_key, str):
+        secret_key_str = secret_key
+    else:
+        secret_key_str = str(secret_key)
+    
+    # Try decoding with string format first (standard PyJWT behavior)
+    try:
+        return jwt.decode(token_str, secret_key_str, algorithms=["HS256"])
+    except jwt.InvalidTokenError as e:
+        # If string format fails with "must be bytes" error, try bytes format
+        error_msg = str(e)
+        if "must be a <class 'bytes'>" in error_msg or ("bytes" in error_msg.lower() and "token" in error_msg.lower()):
+            logger.debug(f"JWT decode: Retrying with bytes format (error: {e})")
+            # Convert to bytes and try again
+            token_bytes = token_str.encode('utf-8')
+            secret_key_bytes = secret_key_str.encode('utf-8')
+            return jwt.decode(token_bytes, secret_key_bytes, algorithms=["HS256"])
+        else:
+            # Re-raise if it's a different error
+            raise
+
+
 # --- Authentication & Authorization Dependencies ---
 
 
@@ -153,20 +203,7 @@ async def get_current_user(
         return None
 
     try:
-        # Ensure token is a string (not bytes) - PyJWT expects string tokens
-        if isinstance(token, bytes):
-            token = token.decode('utf-8')
-        elif not isinstance(token, str):
-            token = str(token)
-        
-        # Ensure SECRET_KEY is a string (not bytes) - PyJWT expects string keys
-        secret_key = SECRET_KEY
-        if isinstance(secret_key, bytes):
-            secret_key = secret_key.decode('utf-8')
-        elif not isinstance(secret_key, str):
-            secret_key = str(secret_key)
-        
-        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        payload = decode_jwt_token(token, SECRET_KEY)
         logger.debug(
             f"get_current_user: Token successfully decoded for user '{payload.get('email', 'N/A')}'."
         )

@@ -93,21 +93,9 @@ async def get_experiment_sub_user(
         return None
     
     try:
-        # Ensure token is a string (not bytes) - PyJWT expects string tokens
-        if isinstance(session_token, bytes):
-            session_token = session_token.decode('utf-8')
-        elif not isinstance(session_token, str):
-            session_token = str(session_token)
-        
-        # Ensure SECRET_KEY is a string (not bytes) - PyJWT expects string keys
-        secret_key = SECRET_KEY
-        if isinstance(secret_key, bytes):
-            secret_key = secret_key.decode('utf-8')
-        elif not isinstance(secret_key, str):
-            secret_key = str(secret_key)
-        
-        # Decode session token (JWT)
-        payload = jwt.decode(session_token, secret_key, algorithms=["HS256"])
+        # Use the helper function from core_deps for consistent JWT decoding
+        from core_deps import decode_jwt_token
+        payload = decode_jwt_token(session_token, SECRET_KEY)
         
         # Verify it's for this experiment
         if payload.get("experiment_slug") != slug_id:
