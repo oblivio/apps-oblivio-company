@@ -1,0 +1,34 @@
+{
+  "slug": "data_imaging_advanced",
+  "name": "Workout Autoencoder (Advanced)",
+  "description": "Learned embeddings using a PyTorch Autoencoder (64-dim) for deeper pattern recognition.",
+  "status": "active",
+  "auth_required": false,
+  "data_scope": ["self"],
+  "managed_indexes": {
+    "workouts": [
+      {
+        "name": "workout_vector_index",
+        "type": "vectorSearch",
+        "definition": {
+          "fields": [
+            {
+              "type": "vector",
+              "path": "workout_vector",
+              "numDimensions": 64,
+              "similarity": "cosine"
+            },
+            {
+              "type": "filter",
+              "path": "experiment_id"
+            },
+            {
+              "type": "filter",
+              "path": "_id"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

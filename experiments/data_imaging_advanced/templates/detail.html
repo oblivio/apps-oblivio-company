@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Workout {{workout_id}}</title>
+  <style>
+    body { background: #0C1822; color: #E4EAF0; font-family: system-ui, sans-serif; padding: 20px; }
+    .container { max-width: 1000px; margin: 0 auto; background: #132A38; padding: 30px; border-radius: 12px; border: 1px solid #2A506F; }
+    h1, h2 { color: #E4EAF0; border-bottom: 1px solid #2A506F; padding-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: 300px 1fr; gap: 30px; margin-bottom: 30px; }
+    img.main { width: 100%; image-rendering: pixelated; border: 2px solid #2A506F; border-radius: 8px; }
+    .channels { display: flex; gap: 10px; margin-top: 10px; justify-content: center; }
+    .channels img { width: 64px; height: 64px; image-rendering: pixelated; border: 1px solid #2A506F; }
+    pre { background: #0C1822; padding: 15px; border-radius: 6px; overflow: auto; border: 1px solid #2A506F; color: #00ED64; }
+    .box { background: #1C3A50; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #2A506F; }
+    .highlight { color: #00ED64; font-weight: bold; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 10px; }
+    a { color: #00ED64; text-decoration: none; }
+    a:hover { color: #fff; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <a href="../">&larr; Back to Gallery</a>
+  <h1>Workout #{{workout_id}}</h1>
+
+  <div class="grid">
+    <div>
+      <img src="data:image/png;base64,{{b64_combined}}" class="main">
+      <div class="channels">
+        <img src="data:image/png;base64,{{b64_r}}">
+        <img src="data:image/png;base64,{{b64_g}}">
+        <img src="data:image/png;base64,{{b64_b}}">
+      </div>
+      <p style="text-align: center; color: #A7B6C2; font-size: 0.9em;">
+        Visual Representation (8x8x3)<br>
+        <span class="highlight">{{vector_dim}}-dim Learned Vector</span>
+      </p>
+    </div>
+    
+    <div>
+      <h2>Original Data</h2>
+      <pre>{{json_data_pretty}}</pre>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>Similar Workouts (Vector Search)</h2>
+    <p>Finding "Workout Twins" using 64-dim embedding from PyTorch Autoencoder.</p>
+    <ul>{{ai_neighbors_html|safe}}</ul>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Workout Autoencoder Gallery</title>
+  <style>
+    body { background: #0C1822; color: #E4EAF0; font-family: system-ui, sans-serif; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .controls { margin-bottom: 30px; display: flex; gap: 15px; }
+    .btn { background: #00ED64; color: #000; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn-blue { background: #58AEFF; color: #000; }
+    .btn-red { background: #FF6868; color: #fff; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
+    .collection-item { background: #132A38; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #2A506F; transition: transform 0.2s; }
+    .collection-item:hover { transform: translateY(-5px); border-color: #00ED64; }
+    .collection-item img { width: 100%; height: auto; image-rendering: pixelated; border-radius: 4px; margin-bottom: 10px; border: 1px solid #2A506F; }
+    .collection-item a { color: inherit; text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Workout Autoencoder Gallery</h1>
+  <p>64-dim Latent Space Embeddings (PyTorch)</p>
+  
+  <div class="controls">
+    <form action="generate" method="POST">
+      <button class="btn">Generate New Workout</button>
+    </form>
+  </div>
+
+  <div class="grid">
+    {{collection_images_html|safe}}
+  </div>
+</div>
+</body>
+</html>
