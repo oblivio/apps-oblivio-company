@@ -19,6 +19,7 @@ casbin-motor-adapter>=0.4.0
 # For OSO library (local development): pip install oso
 gunicorn
 ray[default]==2.50.0
+click<=8.1.7
 b2sdk
 numpy
 matplotlib

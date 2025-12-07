@@ -220,7 +220,7 @@ class ExperimentActor:
         spd = 4.0 + (suffix % 6) * 0.5 + np.random.rand(64) * 0.5
         
         doc = {
-            "_id": f"workout_adv_{suffix}",
+            "_id": f"workout_{suffix}",
             "user_id": f"user_{suffix % 5}",
             "start_time": datetime.now(timezone.utc),
             "duration_minutes": 64,
@@ -272,7 +272,7 @@ class ExperimentActor:
         )
 
     async def render_detail_page(self, workout_id: int, request_context):
-        doc_id = f"workout_adv_{workout_id}"
+        doc_id = f"workout_{workout_id}"
         doc = self.collection.find_one({"_id": doc_id})
         if not doc:
             return f"<h1>Workout {doc_id} not found</h1>"
