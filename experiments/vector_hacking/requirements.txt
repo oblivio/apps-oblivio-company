@@ -1,0 +1,6 @@
+ollama
+langchain-ollama
+ray
+numpy
+httpx
+

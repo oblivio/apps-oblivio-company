@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vector Inversion Attack | Oblivio Security Labs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0c;
+            --bg-panel: #131316;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-green: #00ff9d;
+            --accent-green-dim: rgba(0, 255, 157, 0.1);
+            --accent-red: #ff4d4d;
+            --accent-blue: #00ccff;
+            --border-color: #333;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+        }
+
+        .font-mono { font-family: var(--font-mono); }
+        .text-accent { color: var(--accent-green); }
+        .text-danger-custom { color: var(--accent-red); }
+        .text-blue-custom { color: var(--accent-blue); }
+
+        .navbar {
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+        }
+
+        .brand-logo {
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--text-primary);
+            text-transform: uppercase;
+        }
+
+        .panel {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .panel-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin: 0;
+        }
+
+        /* Terminal Styling */
+        .terminal-window {
+            background-color: #000;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            height: 300px;
+            overflow-y: auto;
+            color: #d4d4d4;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .terminal-line {
+            margin-bottom: 4px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .terminal-line.success { color: var(--accent-green); }
+        .terminal-line.info { color: var(--accent-blue); }
+        
+        /* Progress Bar */
+        .vector-progress {
+            height: 6px;
+            background-color: #333;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .vector-progress-bar {
+            height: 100%;
+            background-color: var(--accent-green);
+            width: 0%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        /* Buttons */
+        .btn-custom {
+            padding: 0.6rem 1.2rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .btn-primary-custom {
+            background-color: var(--accent-green);
+            color: #000;
+        }
+        
+        .btn-primary-custom:hover:not(:disabled) {
+            background-color: #00cc7d;
+            box-shadow: 0 0 15px var(--accent-green-dim);
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary-custom:disabled {
+            background-color: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .btn-danger-custom {
+            background-color: rgba(255, 77, 77, 0.1);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+        
+        .btn-danger-custom:hover:not(:disabled) {
+            background-color: var(--accent-red);
+            color: #fff;
+        }
+        
+        /* Stats */
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            line-height: 1.2;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        /* Badge */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-badge.running { background-color: rgba(0, 255, 157, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); animation: pulse 2s infinite; }
+        .status-badge.stopped { background-color: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid #666; }
+        .status-badge.match { background-color: rgba(0, 204, 255, 0.2); color: var(--accent-blue); border: 1px solid var(--accent-blue); }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 157, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 157, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 157, 0); }
+        }
+
+        .scan-line {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--accent-green), transparent);
+            opacity: 0.5;
+            position: absolute;
+            top: 0;
+            left: 0;
+            animation: scan 3s linear infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 0.5; }
+            90% { opacity: 0.5; }
+            100% { top: 100%; opacity: 0; }
+        }
+        
+        .blur-text {
+            filter: blur(4px);
+            transition: filter 1s ease;
+        }
+        
+        .unblur {
+            filter: blur(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container">
+            <span class="brand-logo">
+                <span class="text-accent">OBLIVIO</span> // SECURITY_LABS
+            </span>
+            <div class="d-flex align-items-center gap-3">
+                <span id="connectionStatus" class="status-badge stopped">System Idle</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <!-- Intro / Mission -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <h1 class="display-5 fw-bold mb-3">Vector Inversion Attack</h1>
+                <p class="lead text-secondary">
+                    Demonstrating the risk of <span class="text-white">embedding inversion</span>. 
+                    We have a target "thought" (vector) but don't know the text. 
+                    An LLM agent will iteratively guess, check the vector error, and "hack" the meaning.
+                </p>
+            </div>
+            <div class="col-lg-4 text-end d-flex align-items-center justify-content-end gap-2">
+                <button id="startBtn" class="btn btn-custom btn-primary-custom">
+                    Initialize Attack
+                </button>
+                <button id="stopBtn" class="btn btn-custom btn-danger-custom" disabled>
+                    Abort
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left Column: Visualizer & Stats -->
+            <div class="col-lg-5">
+                <!-- Target Panel -->
+                <div class="panel position-relative overflow-hidden">
+                    <div class="scan-line"></div>
+                    <div class="panel-header">
+                        <h3 class="panel-title">Target Vector Lock</h3>
+                        <span class="font-mono text-accent" style="font-size: 0.7rem;">ID: TGT-8842-X</span>
+                    </div>
+                    
+                    <div class="mb-4 text-center py-4">
+                        <div class="stat-label mb-2">Current Best Approximation</div>
+                        <div id="bestText" class="stat-value text-white blur-text">Waiting...</div>
+                        <div class="text-secondary mt-2 font-mono" style="font-size: 0.8rem;">
+                            Latent Space Proximity: <span id="proximityVal">0.00%</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between font-mono" style="font-size: 0.75rem;">
+                            <span>VECTOR ERROR</span>
+                            <span id="bestError">∞</span>
+                        </div>
+                        <div class="vector-progress">
+                            <div id="errorBar" class="vector-progress-bar" style="width: 0%; background-color: var(--accent-red);"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Metrics Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">Attack Metrics</h3>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col-4 border-end border-secondary border-opacity-25">
+                            <div id="guessCount" class="stat-value text-blue-custom">0</div>
+                            <div class="stat-label">Vectors Analyzed</div>
+                        </div>
+                        <div class="col-4 border-end border-secondary border-opacity-25">
+                            <div id="modelUsed" class="stat-value text-white" style="font-size: 1.1rem; padding-top: 0.5rem;">-</div>
+                            <div class="stat-label">Model</div>
+                        </div>
+                        <div class="col-4">
+                            <div id="costVal" class="stat-value text-danger-custom">$0.00</div>
+                            <div class="stat-label">Est. Compute Cost</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Explanation Panel -->
+                <div class="panel" style="border-left: 3px solid var(--accent-blue);">
+                    <div class="panel-header">
+                        <h3 class="panel-title text-blue-custom">Vulnerability Analysis</h3>
+                    </div>
+                    <p class="small text-secondary mb-0">
+                        Vector databases store meanings, not just keywords. If an attacker can measure the "distance" between their query and your private data (via side-channels or error messages), they can use an LLM to "hill-climb" towards your private data without ever seeing it directly.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Right Column: Terminal -->
+            <div class="col-lg-7">
+                <div class="panel h-100 d-flex flex-column">
+                    <div class="panel-header">
+                        <h3 class="panel-title">Attack Log Output</h3>
+                        <span class="font-mono text-secondary" style="font-size: 0.7rem;">/var/log/vector_hack.log</span>
+                    </div>
+                    <div id="terminal" class="terminal-window flex-grow-1">
+                        <div class="terminal-line text-secondary">
+                            <span class="font-mono">[SYS]</span> System ready. Waiting for initialization...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get base path from current URL
+        const currentPath = window.location.pathname;
+        const basePath = currentPath.replace(/\/$/, ''); // Remove trailing slash
+        
+        // DOM elements
+        const statusBadge = document.getElementById('connectionStatus');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const bestTextEl = document.getElementById('bestText');
+        const bestErrorEl = document.getElementById('bestError');
+        const guessCountEl = document.getElementById('guessCount');
+        const modelUsedEl = document.getElementById('modelUsed');
+        const costValEl = document.getElementById('costVal');
+        const proximityValEl = document.getElementById('proximityVal');
+        const errorBar = document.getElementById('errorBar');
+        const terminal = document.getElementById('terminal');
+        
+        let pollInterval = null;
+        let lastGuessCount = 0;
+        let isRunning = false;
+        let currentCountDisplay = 0;
+        let targetCount = 0;
+        
+        // Animation loop for smooth counter
+        const animateStats = () => {
+            if (currentCountDisplay < targetCount) {
+                // Increment by a fraction of the difference or at least 1
+                const diff = targetCount - currentCountDisplay;
+                const step = Math.ceil(diff / 5); 
+                currentCountDisplay += step;
+                guessCountEl.textContent = currentCountDisplay;
+            } else if (currentCountDisplay > targetCount && targetCount === 0) {
+                 // Reset case
+                 currentCountDisplay = 0;
+                 guessCountEl.textContent = 0;
+            }
+            requestAnimationFrame(animateStats);
+        };
+        requestAnimationFrame(animateStats);
+        
+        // Reset UI to initial state on page load
+        const resetUI = () => {
+            statusBadge.textContent = 'SYSTEM IDLE';
+            statusBadge.className = 'status-badge stopped';
+            bestTextEl.textContent = 'Waiting...';
+            bestTextEl.classList.add('blur-text');
+            bestErrorEl.textContent = '∞';
+            
+            // Reset counters
+            targetCount = 0;
+            currentCountDisplay = 0;
+            guessCountEl.textContent = '0';
+            
+            modelUsedEl.textContent = '-';
+            costValEl.textContent = '$0.00';
+            proximityValEl.textContent = '0.00%';
+            errorBar.style.width = '0%';
+            errorBar.style.backgroundColor = 'var(--accent-red)';
+            startBtn.disabled = false;
+            startBtn.textContent = 'Initialize Attack';
+            stopBtn.disabled = true;
+            isRunning = false;
+            lastGuessCount = 0;
+        };
+        
+        // Helper: Add line to terminal
+        const logToTerminal = (msg, type = 'text-secondary') => {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+            line.innerHTML = `<span class="font-mono opacity-50">[${timestamp}]</span> <span>${msg}</span>`;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        };
+
+        // Format Error to Percentage (Simulated proximity)
+        // Assuming max error around 2.0 (totally random) and min error 0.0
+        const calculateProximity = (error) => {
+            if (error === null || error === undefined || error === Infinity || isNaN(error)) return 0;
+            // Simple mapping: 1.5 error -> 0%, 0.6 error -> 100% (based on actor.py MATCH_ERROR=0.4)
+            // Let's make it visual: 2.0 -> 0, 0.0 -> 100
+            const maxErr = 1.8;
+            const minErr = 0.5; 
+            let pct = (maxErr - error) / (maxErr - minErr) * 100;
+            return Math.max(0, Math.min(100, pct));
+        };
+
+        // Update status from API
+        const updateStatus = async () => {
+            try {
+                const response = await fetch(`${basePath}/api/status`);
+                if (!response.ok) throw new Error('API Error');
+                const data = await response.json();
+                
+                // Check for match found first (highest priority) - update immediately
+                if (data.MATCH_FOUND) {
+                    if (isRunning) {
+                        isRunning = false;
+                        logToTerminal('*** MATCH FOUND *** Decryption successful.', 'success fw-bold');
+                    }
+                    statusBadge.textContent = 'TARGET COMPROMISED';
+                    statusBadge.className = 'status-badge match';
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    startBtn.textContent = 'Restart Attack';
+                    bestTextEl.classList.remove('blur-text');
+                }
+                // State handling
+                else if (data.running && !isRunning) {
+                    // Transition to running
+                    isRunning = true;
+                    statusBadge.textContent = 'ATTACK IN PROGRESS';
+                    statusBadge.className = 'status-badge running';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    bestTextEl.classList.remove('blur-text');
+                } else if (!data.running && isRunning) {
+                    // Transition to stopped
+                    isRunning = false;
+                    if (data.MATCH_FOUND) {
+                        statusBadge.textContent = 'TARGET COMPROMISED';
+                        statusBadge.className = 'status-badge match';
+                        logToTerminal('*** MATCH FOUND *** Decryption successful.', 'success fw-bold');
+                    } else {
+                        statusBadge.textContent = 'SYSTEM IDLE';
+                        statusBadge.className = 'status-badge stopped';
+                        logToTerminal('Process halted by user.', 'text-danger-custom');
+                    }
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    startBtn.textContent = 'Initialize Attack';
+                }
+
+                // Update Stats
+                if (data.CURRENT_BEST_TEXT && data.CURRENT_BEST_TEXT !== "Be") {
+                    if (bestTextEl.textContent !== data.CURRENT_BEST_TEXT) {
+                        bestTextEl.textContent = data.CURRENT_BEST_TEXT;
+                        // Visual pulse effect on new best guess
+                        bestTextEl.style.color = '#fff';
+                        setTimeout(() => bestTextEl.style.color = 'var(--text-primary)', 300);
+                        
+                        // Add to log if it's a new best guess (with null check)
+                        if (data.CURRENT_BEST_ERROR !== null && data.CURRENT_BEST_ERROR !== undefined && data.CURRENT_BEST_ERROR !== Infinity && !isNaN(data.CURRENT_BEST_ERROR)) {
+                            logToTerminal(`New optimization: "${data.CURRENT_BEST_TEXT}" (Err: ${data.CURRENT_BEST_ERROR.toFixed(4)})`, 'success');
+                        } else {
+                            logToTerminal(`New optimization: "${data.CURRENT_BEST_TEXT}"`, 'success');
+                        }
+                    }
+                }
+
+                // Update error display with comprehensive null/undefined/Infinity checks
+                if (data.CURRENT_BEST_ERROR !== null && data.CURRENT_BEST_ERROR !== undefined && data.CURRENT_BEST_ERROR !== Infinity && !isNaN(data.CURRENT_BEST_ERROR)) {
+                    bestErrorEl.textContent = data.CURRENT_BEST_ERROR.toFixed(4);
+                    
+                    // Update Progress Bar
+                    const proximity = calculateProximity(data.CURRENT_BEST_ERROR);
+                    proximityValEl.textContent = proximity.toFixed(2) + '%';
+                    errorBar.style.width = proximity + '%';
+                    
+                    // Color shift based on success
+                    if (proximity > 80) {
+                        errorBar.style.backgroundColor = 'var(--accent-green)';
+                        proximityValEl.className = 'text-accent';
+                    } else if (proximity > 40) {
+                        errorBar.style.backgroundColor = 'var(--accent-blue)';
+                        proximityValEl.className = 'text-blue-custom';
+                    } else {
+                        errorBar.style.backgroundColor = 'var(--accent-red)';
+                        proximityValEl.className = 'text-danger-custom';
+                    }
+                } else {
+                    // Handle null/undefined/Infinity cases
+                    bestErrorEl.textContent = '∞';
+                    errorBar.style.width = '0%';
+                    proximityValEl.textContent = '0.00%';
+                    errorBar.style.backgroundColor = 'var(--accent-red)';
+                    proximityValEl.className = 'text-danger-custom';
+                }
+
+                if (data.GUESSES_MADE !== null && data.GUESSES_MADE !== undefined && !isNaN(data.GUESSES_MADE)) {
+                    const diff = data.GUESSES_MADE - lastGuessCount;
+                    if (diff > 0 && isRunning) {
+                         // Don't log every single guess, just batch updates or generic "processing"
+                    }
+                    // Update target for animation
+                    targetCount = data.GUESSES_MADE;
+                    lastGuessCount = data.GUESSES_MADE;
+                } else {
+                    targetCount = 0;
+                }
+                
+                if (data.LAST_ERROR) {
+                    logToTerminal(`System Error: ${data.LAST_ERROR}`, 'text-danger-custom');
+                }
+                
+                if (data.MODEL_USED) {
+                    modelUsedEl.textContent = data.MODEL_USED;
+                }
+
+                if (data.TOTAL_COST !== null && data.TOTAL_COST !== undefined && !isNaN(data.TOTAL_COST)) {
+                    costValEl.textContent = '$' + data.TOTAL_COST.toFixed(4);
+                } else {
+                    costValEl.textContent = '$0.00';
+                }
+                
+                // Stop polling if match found or attack stopped
+                if (data.MATCH_FOUND && pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                } else if (!data.running && !data.MATCH_FOUND && pollInterval) {
+                    // Stop polling if manually stopped (but keep UI updates for a bit)
+                    // Don't clear immediately to allow final status update
+                }
+
+            } catch (e) {
+                console.error('Poll error', e);
+                statusBadge.textContent = 'CONNECTION ERROR';
+                statusBadge.className = 'status-badge stopped bg-danger';
+            }
+        };
+        
+        const startPolling = () => {
+            if (pollInterval) return;
+            updateStatus();
+            pollInterval = setInterval(updateStatus, 1000);
+        };
+        
+        // Button Handlers
+        startBtn.addEventListener('click', async () => {
+            logToTerminal('Initializing attack vector...', 'info');
+            startBtn.disabled = true;
+            
+            try {
+                const res = await fetch(`${basePath}/start`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'started' || data.status === 'already_running') {
+                    logToTerminal('Access granted. Agent active.', 'success');
+                    startPolling();
+                } else {
+                    logToTerminal('Initialization failed: ' + (data.error || 'Unknown'), 'text-danger-custom');
+                    startBtn.disabled = false;
+                }
+            } catch (e) {
+                logToTerminal('Network error on start command.', 'text-danger-custom');
+                startBtn.disabled = false;
+            }
+        });
+        
+        stopBtn.addEventListener('click', async () => {
+            logToTerminal('Sending abort signal...', 'text-warning');
+            stopBtn.disabled = true;
+            
+            try {
+                await fetch(`${basePath}/stop`, { method: 'POST' });
+                // Status poll will handle UI update
+            } catch (e) {
+                logToTerminal('Network error on stop command.', 'text-danger-custom');
+            }
+        });
+        
+        // Reset state on page load - stop any running attack to ensure fresh start
+        const resetOnLoad = async () => {
+            // Reset UI first
+            resetUI();
+            
+            // Clear terminal (keep only initial message)
+            terminal.innerHTML = '<div class="terminal-line text-secondary"><span class="font-mono">[SYS]</span> System ready. Waiting for initialization...</div>';
+            
+            // Stop any running attack
+            try {
+                await fetch(`${basePath}/stop`, { method: 'POST' });
+            } catch (e) {
+                // Ignore errors - might not be running
+            }
+            
+            // Small delay to ensure state is reset before polling starts
+            setTimeout(() => {
+                startPolling();
+                // Initial intro log
+                setTimeout(() => logToTerminal('Connected to vector_hacking_demo node.'), 500);
+                setTimeout(() => logToTerminal('Target vector loaded: [768 dimensions]'), 1200);
+            }, 100);
+        };
+        
+        resetOnLoad();
+    </script>
+</body>
+</html>

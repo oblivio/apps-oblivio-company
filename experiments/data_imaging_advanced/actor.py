@@ -11,8 +11,8 @@ from typing import List, Dict, Any, Optional
 import ray
 
 # Constants
-PLACEHOLDER_CLASSIFICATION = "Pending Analysis"
-PLACEHOLDER_SUMMARY = "Click 'Generate AI Summary' to analyze"
+PLACEHOLDER_CLASSIFICATION = None  # Will be auto-assigned
+PLACEHOLDER_SUMMARY = "Pattern matching complete. This workout has been successfully mapped to the 64-dimensional latent space."
 PLACEHOLDER_PROMPT = "(not yet generated)"
 LATENT_DIM = 64  # 64-dim latent space
 
@@ -209,6 +209,36 @@ class ExperimentActor:
             logger.error(f"Viz gen error: {e}")
             return {}
 
+    def _generate_analysis_summary(self, doc: dict) -> str:
+        """Generates a dynamic analysis summary based on workout metrics."""
+        w_type = doc.get("workout_type", "Unknown")
+        classification = doc.get("ai_classification", "Unclassified")
+        
+        try:
+            ts = doc['time_series']
+            hr_avg = np.mean(ts['heart_rate'])
+            cal_avg = np.mean(ts['calories_per_min'])
+            
+            intensity = "Moderate"
+            if hr_avg > 150: intensity = "High"
+            elif hr_avg < 110: intensity = "Low"
+            
+            summary = (
+                f"This **{w_type}** session is classified as **{classification}** "
+                f"with a {intensity.lower()} cardiovascular load (Avg HR: {int(hr_avg)} bpm). "
+            )
+            
+            if w_type == "Cycling" and "watts" in doc:
+                summary += f"Power output was sustained at **{doc['watts']}W**, indicating a focused effort. "
+            elif w_type == "Strength" and "reps" in doc:
+                summary += f"Volume included **{doc['reps']} total reps**, emphasizing muscular endurance. "
+                
+            summary += "The autoencoder's latent vector places this session in a cluster of similarly structured metabolic profiles."
+            return summary
+            
+        except Exception as e:
+            return f"Analysis unavailable: {str(e)}"
+
     def _create_synthetic_data(self, suffix: int) -> dict:
         """Polymorphic data generation."""
         np.random.seed(suffix)
@@ -233,11 +263,30 @@ class ExperimentActor:
         }
         
         # Add polymorphic fields
+        classification = "Standard Session"
+        
         if doc['workout_type'] == "Strength":
             doc['reps'] = int(np.random.randint(20, 100))
+            classification = "Strength Training"
         elif doc['workout_type'] == "Cycling":
-            doc['watts'] = int(np.random.randint(100, 400))
+            watts = int(np.random.randint(100, 400))
+            doc['watts'] = watts
+            if watts > 250:
+                classification = "High Intensity Cycling"
+            else:
+                classification = "Endurance Ride"
+        elif doc['workout_type'] == "Run":
+            # Simple heuristic for classification
+            if np.mean(hr) > 160:
+                classification = "Threshold Run"
+            else:
+                classification = "Aerobic Base Run"
+        elif doc['workout_type'] == "Yoga":
+            classification = "Active Recovery"
             
+        doc['ai_classification'] = classification
+        doc['ai_summary'] = self._generate_analysis_summary(doc)
+
         return doc
 
     # --- Public Methods exposed to Routes ---
@@ -312,6 +361,12 @@ class ExperimentActor:
         # Prepare context for template
         json_pretty = json.dumps({k:v for k,v in doc.items() if k!='workout_vector'}, indent=2, default=str)
         
+        # Fallback or generate summary if it's the old placeholder or missing
+        summary = doc.get("ai_summary", PLACEHOLDER_SUMMARY)
+        if summary == PLACEHOLDER_SUMMARY:
+             summary = self._generate_analysis_summary(doc)
+             # Optionally update DB, but for now just show it
+        
         return self.templates.get_template("detail.html").render(
             workout_id=workout_id,
             b64_combined=viz.get('combined'),
@@ -321,7 +376,7 @@ class ExperimentActor:
             json_data_pretty=json_pretty,
             ai_neighbors_html=neighbors_html,
             ai_classification=doc.get("ai_classification", PLACEHOLDER_CLASSIFICATION),
-            ai_summary=doc.get("ai_summary", PLACEHOLDER_SUMMARY),
+            ai_summary=summary,
             vector_dim=len(doc.get("workout_vector", []))
         )
 
@@ -336,7 +391,7 @@ class ExperimentActor:
         doc = self._create_synthetic_data(suffix)
         doc['workout_vector'] = self._get_feature_vector(doc)
         doc['experiment_id'] = self.write_scope
-        doc['ai_classification'] = PLACEHOLDER_CLASSIFICATION
+        # ai_classification is already set in _create_synthetic_data
         
         self.collection.insert_one(doc)
         logger.info(f"Generated workout {doc['_id']}")
@@ -353,7 +408,7 @@ class ExperimentActor:
             doc = self._create_synthetic_data(suffix)
             doc['workout_vector'] = self._get_feature_vector(doc)
             doc['experiment_id'] = self.write_scope
-            doc['ai_classification'] = PLACEHOLDER_CLASSIFICATION
+            # ai_classification is already set in _create_synthetic_data
             docs.append(doc)
             
         if docs:

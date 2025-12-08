@@ -1,0 +1,10 @@
+{
+  "slug": "vector_hacking",
+  "name": "Vector Hacking Demo",
+  "description": "A demonstration of vector inversion/hacking using LLMs.",
+  "status": "active",
+  "auth_required": false,
+  "data_scope": ["global"],
+  "managed_indexes": {}
+}
+

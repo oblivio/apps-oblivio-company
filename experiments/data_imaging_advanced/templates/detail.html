@@ -2,53 +2,366 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Workout {{workout_id}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep Dive: Workout #{{workout_id}}</title>
   <style>
-    body { background: #0C1822; color: #E4EAF0; font-family: system-ui, sans-serif; padding: 20px; }
-    .container { max-width: 1000px; margin: 0 auto; background: #132A38; padding: 30px; border-radius: 12px; border: 1px solid #2A506F; }
-    h1, h2 { color: #E4EAF0; border-bottom: 1px solid #2A506F; padding-bottom: 10px; }
-    .grid { display: grid; grid-template-columns: 300px 1fr; gap: 30px; margin-bottom: 30px; }
-    img.main { width: 100%; image-rendering: pixelated; border: 2px solid #2A506F; border-radius: 8px; }
-    .channels { display: flex; gap: 10px; margin-top: 10px; justify-content: center; }
-    .channels img { width: 64px; height: 64px; image-rendering: pixelated; border: 1px solid #2A506F; }
-    pre { background: #0C1822; padding: 15px; border-radius: 6px; overflow: auto; border: 1px solid #2A506F; color: #00ED64; }
-    .box { background: #1C3A50; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #2A506F; }
-    .highlight { color: #00ED64; font-weight: bold; }
-    ul { padding-left: 20px; }
-    li { margin-bottom: 10px; }
-    a { color: #00ED64; text-decoration: none; }
-    a:hover { color: #fff; }
+    :root {
+      --bg-dark: #050b14;
+      --bg-card: #0f1f2d;
+      --border: rgba(42, 80, 111, 0.4);
+      --accent: #00ED64;
+      --text: #E4EAF0;
+      --text-muted: #8B9BB4;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body { 
+      background: var(--bg-dark); 
+      color: var(--text); 
+      font-family: 'Inter', system-ui, sans-serif; 
+      padding: 0;
+      margin: 0;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      padding: 40px 20px;
+    }
+    
+    /* Navigation */
+    .nav-bar {
+      margin-bottom: 30px;
+    }
+
+    a.back-link { 
+      color: var(--text-muted); 
+      text-decoration: none; 
+      font-weight: 600; 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 8px; 
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 99px;
+      transition: all 0.2s; 
+      font-size: 0.9rem;
+    }
+    a.back-link:hover { 
+      background: rgba(255,255,255,0.1);
+      color: #fff; 
+      transform: translateX(-3px);
+    }
+    
+    /* Header */
+    header { 
+      margin-bottom: 40px; 
+      display: flex; 
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      header {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+      }
+    }
+
+    h1 { 
+      margin: 0; 
+      font-size: 2.5rem; 
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+    
+    .workout-id { color: var(--text-muted); font-weight: 400; }
+
+    .classification-badge {
+      display: inline-block;
+      padding: 8px 16px;
+      background: rgba(0, 237, 100, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0, 237, 100, 0.3);
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 0 15px rgba(0, 237, 100, 0.1);
+    }
+    
+    /* Grid Layout */
+    .dashboard-grid { 
+      display: grid; 
+      grid-template-columns: 1fr; 
+      gap: 30px; 
+    }
+
+    @media (min-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 350px 1fr;
+        align-items: start;
+      }
+    }
+    
+    /* Cards */
+    .card { 
+      background: var(--bg-card); 
+      padding: 24px; 
+      border-radius: var(--radius); 
+      border: 1px solid var(--border); 
+      margin-bottom: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .card:last-child { margin-bottom: 0; }
+    
+    .section-title { 
+      font-size: 1.1rem; 
+      color: #fff; 
+      margin: 0 0 20px 0; 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      opacity: 0.9;
+    }
+    .section-title::before { 
+      content: ''; 
+      width: 6px; 
+      height: 6px; 
+      background: var(--accent); 
+      border-radius: 50%; 
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* Visualizer Column */
+    .visual-sticky {
+      position: sticky;
+      top: 20px;
+    }
+
+    .tensor-view {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    img.main-viz { 
+      width: 100%; 
+      aspect-ratio: 1; 
+      image-rendering: pixelated; 
+      border-radius: 12px; 
+      border: 2px solid var(--border); 
+      box-shadow: 0 0 30px rgba(0,0,0,0.3); 
+      transition: transform 0.3s ease;
+    }
+    
+    .channel-grid { 
+      display: grid; 
+      grid-template-columns: repeat(3, 1fr); 
+      gap: 10px; 
+      margin-top: 20px; 
+    }
+    
+    .channel-item { 
+      text-align: center; 
+      font-size: 0.7rem; 
+      color: var(--text-muted); 
+      background: rgba(255,255,255,0.03);
+      padding: 8px;
+      border-radius: 8px;
+    }
+    
+    .channel-item img { 
+      width: 100%; 
+      aspect-ratio: 1; 
+      image-rendering: pixelated; 
+      border-radius: 4px; 
+      border: 1px solid var(--border); 
+      display: block; 
+      margin: 0 auto 6px; 
+    }
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    /* Analysis Content */
+    .summary-text {
+      font-size: 1.1rem;
+      line-height: 1.8;
+      color: #cbd5e0;
+    }
+
+    .summary-text strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Vector Search Results */
+    .vector-list { list-style: none; padding: 0; margin: 0; }
+    
+    .vector-item { 
+      padding: 16px; 
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      transition: background 0.2s;
+    }
+    
+    .vector-item:hover {
+      background: rgba(255,255,255,0.06);
+    }
+
+    .vector-item a { 
+      color: var(--accent); 
+      text-decoration: none; 
+      font-weight: 700; 
+      font-size: 1.05rem;
+    }
+    
+    .vector-item .meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    
+    .score-badge { 
+      background: rgba(88, 174, 255, 0.15); 
+      color: #58AEFF; 
+      padding: 4px 10px; 
+      border-radius: 6px; 
+      font-size: 0.85rem; 
+      font-weight: 600; 
+      font-family: monospace;
+    }
+
+    /* JSON Dump */
+    pre.json-dump { 
+      background: #080f18; 
+      padding: 20px; 
+      border-radius: 8px; 
+      overflow-x: auto; 
+      color: #a0aec0; 
+      font-size: 0.85rem; 
+      font-family: 'Fira Code', monospace;
+      border: 1px solid var(--border); 
+      max-height: 400px;
+    }
+
+    .footer-quote {
+      text-align: center;
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
   </style>
 </head>
 <body>
 <div class="container">
-  <a href="../">&larr; Back to Gallery</a>
-  <h1>Workout #{{workout_id}}</h1>
-
-  <div class="grid">
-    <div>
-      <img src="data:image/png;base64,{{b64_combined}}" class="main">
-      <div class="channels">
-        <img src="data:image/png;base64,{{b64_r}}">
-        <img src="data:image/png;base64,{{b64_g}}">
-        <img src="data:image/png;base64,{{b64_b}}">
-      </div>
-      <p style="text-align: center; color: #A7B6C2; font-size: 0.9em;">
-        Visual Representation (8x8x3)<br>
-        <span class="highlight">{{vector_dim}}-dim Learned Vector</span>
-      </p>
-    </div>
-    
-    <div>
-      <h2>Original Data</h2>
-      <pre>{{json_data_pretty}}</pre>
-    </div>
+  
+  <div class="nav-bar">
+    <a href="../" class="back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to Gallery
+    </a>
   </div>
+  
+  <header>
+    <div>
+      <h1>Workout <span class="workout-id">#{{workout_id}}</span></h1>
+      <div style="margin-top: 8px; color: var(--text-muted);">Latent Vector Analysis &bull; {{vector_dim}}-dimensional embedding</div>
+    </div>
+    <div class="classification-badge">
+      {{ai_classification}}
+    </div>
+  </header>
 
-  <div class="box">
-    <h2>Similar Workouts (Vector Search)</h2>
-    <p>Finding "Workout Twins" using 64-dim embedding from PyTorch Autoencoder.</p>
-    <ul>{{ai_neighbors_html|safe}}</ul>
+  <div class="dashboard-grid">
+    
+    <!-- Left Column: Visuals -->
+    <aside>
+      <div class="card visual-sticky">
+        <div class="section-title">Tensor Visualization</div>
+        
+        <div class="tensor-view">
+          <img src="data:image/png;base64,{{b64_combined}}" class="main-viz">
+        </div>
+        
+        <div class="channel-grid">
+          <div class="channel-item">
+            <img src="data:image/png;base64,{{b64_r}}">
+            <span>HR (Red)</span>
+          </div>
+          <div class="channel-item">
+            <img src="data:image/png;base64,{{b64_g}}">
+            <span>Cal (Green)</span>
+          </div>
+          <div class="channel-item">
+            <img src="data:image/png;base64,{{b64_b}}">
+            <span>Spd (Blue)</span>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <span style="color: var(--text-muted)">Resolution</span>
+          <span style="font-family: monospace">8 x 8 x 3</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Column: Data & Analysis -->
+    <main>
+      
+      <!-- AI Summary Card -->
+      <div class="card" style="border-left: 4px solid var(--accent); background: linear-gradient(90deg, rgba(0, 237, 100, 0.05) 0%, transparent 100%);">
+        <h3 class="section-title">AI Summary</h3>
+        <div class="summary-text">
+          {{ai_summary}}
+        </div>
+      </div>
+
+      <!-- Vector Search Results -->
+      <div class="card">
+        <h3 class="section-title">Nearest Neighbors (Latent Space)</h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.95rem;">
+          These workouts share the closest mathematical proximity in the 64-dimensional feature space, indicating similar structural patterns.
+        </p>
+        <ul class="vector-list">
+          {{ai_neighbors_html|safe}}
+        </ul>
+      </div>
+
+      <!-- Raw Data -->
+      <div class="card">
+        <h3 class="section-title">Raw Data Object</h3>
+        <pre class="json-dump">{{json_data_pretty}}</pre>
+      </div>
+      
+      <div class="footer-quote">
+        <em>"Any sufficiently advanced technology is indistinguishable from magic."</em>
+        <br><br>
+        <span style="color: var(--accent); font-weight: 600;">Experiment Status: Active</span>
+      </div>
+
+    </main>
   </div>
 
 </div>
