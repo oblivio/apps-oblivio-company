@@ -321,10 +321,19 @@ class ExperimentActor:
         )
 
     async def render_detail_page(self, workout_id: int, request_context):
+        # Try standard ID format
         doc_id = f"workout_{workout_id}"
         doc = self.collection.find_one({"_id": doc_id})
+        
+        # Fallback: Try "workout_rad_" format (used in demo scripts/legacy data)
         if not doc:
-            return f"<h1>Workout {doc_id} not found</h1>"
+            alt_id = f"workout_rad_{workout_id}"
+            doc = self.collection.find_one({"_id": alt_id})
+            if doc:
+                doc_id = alt_id
+                
+        if not doc:
+            return f"<h1>Workout {doc_id} not found</h1><p>Checked for: <code>workout_{workout_id}</code> and <code>workout_rad_{workout_id}</code></p>"
             
         viz = self._generate_viz_images(doc)
         
