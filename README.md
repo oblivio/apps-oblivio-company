@@ -30,10 +30,49 @@ So, I built g.nome.
 - It's the magical "gnome" for your "digital garden": a little helper working behind the scenes to handle the weeding (auth) and mend the fences (security), letting you focus on planting new ideas.    
 - And for modern Python developers, it's the gateway that sits between your app and your database: a 'global' helper injected exactly where you need it, handling all the boilerplate.  
   
-g.nome is the "WordPress-like" model I've always wanted for the modern FastAPI and MongoDB stack, designed to consolidate all those scattered projects into one powerful, maintainable ecosystem.  
-  
----  
-  
+g.nome is the "WordPress-like" model I've always wanted for the modern FastAPI and MongoDB stack, designed to consolidate all those scattered projects into one powerful, maintainable ecosystem.
+
+---
+
+## Quick Start
+
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository_url>
+    cd apps-oblivio-company
+    ```
+
+2.  **Create and activate a virtual environment:**
+    ```bash
+    python3 -m venv venv
+    # Linux/MacOS
+    source venv/bin/activate
+    # Windows
+    venv\Scripts\activate
+    ```
+
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Run the application:**
+    ```bash
+    # Ensure MongoDB is running (e.g., via Docker or Atlas)
+    # Set env vars if needed: export MONGO_URI="mongodb://localhost:27017"
+    
+    # Start the server
+    uvicorn main:app --reload
+    ```
+    
+    Visit `http://localhost:8000/admin` to see the admin panel.
+    
+    **Default Admin Credentials:**
+    - Email: `admin@example.com`
+    - Password: `password123`
+
+---
+
 ## A Platform, Not Just a Project  
   
 The philosophy of g.nome is built on a simple separation of concerns:  
