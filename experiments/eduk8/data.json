@@ -1,0 +1,873 @@
+{
+    "algebra_foundation": {
+      "id": "algebra_foundation",
+      "title": "Algebra Lab",
+      "subtitle": "8th Grade Study Guide",
+      "theme": "stone",
+      "navigation": [
+        {"id": "intro", "label": "Introduction", "icon": "fa-book-open"},
+        {"id": "phase1", "label": "Phase 1: Balance Scale", "icon": "fa-scale-balanced"},
+        {"id": "phase2", "label": "Phase 2: Literal Equations", "icon": "fa-random"},
+        {"id": "phase3", "label": "Phase 3: Video Resources", "icon": "fab fa-youtube"},
+        {"id": "phase4", "label": "Phase 4: Printable Notes", "icon": "fa-clipboard-list"},
+        {"id": "phase5", "label": "Phase 5: Mastery Quiz", "icon": "fa-check-double"}
+      ],
+      "pages": {
+        "intro": {
+          "title": "Introduction",
+          "content": [
+            {
+              "type": "hero",
+              "badge": "Foundation",
+              "title": "The Cognitive Shift: From Arithmetic to Algebra",
+              "text": "Algebra is the \"gatekeeper\" subject. To pass the gate, you must stop calculating answers and start understanding <strong>relationships</strong>."
+            },
+            {
+              "type": "html",
+              "html": "<div class='bg-white p-8 md:p-10 rounded-2xl shadow-sm border border-stone-200 mb-10'><h3 class='text-stone-800 text-2xl font-bold mb-6'>What does \"=\" actually mean?</h3><div class='grid grid-cols-1 md:grid-cols-2 gap-8'><div class='bg-stone-50 p-6 rounded-xl border border-stone-200'><h4 class='font-bold text-stone-500 uppercase text-xs mb-2'>Arithmetic (Elementary School)</h4><p class='font-mono text-lg mb-2'>2 + 3 = ?</p><p class='text-sm text-stone-600'>Here, the sign means <em>\"Do the math and write the answer.\"</em> It is an action.</p></div><div class='bg-amber-50 p-6 rounded-xl border border-amber-200'><h4 class='font-bold text-amber-600 uppercase text-xs mb-2'>Algebra (Middle School)</h4><p class='font-mono text-lg mb-2'>3x + 4 = 5x - 6</p><p class='text-sm text-stone-600'>Here, the sign means <em>\"These two things are balanced.\"</em> It is a relationship.</p></div></div></div>"
+            },
+            {
+                "type": "cta_grid",
+                "items": [
+                    { "link": "phase1", "icon": "fa-scale-balanced", "title": "Phase 1: Balance Scale", "text": "Learn to solve variables on both sides using the 'Move Smallest' heuristic.", "color": "amber" },
+                    { "link": "phase2", "icon": "fa-random", "title": "Phase 2: Literal Equations", "text": "Rearrange formulas like furniture. Essential for graphing lines.", "color": "amber" }
+                ]
+            }
+          ]
+        },
+        "phase1": {
+          "title": "Phase 1: Balance Scale",
+          "content": [
+            {
+                "type": "interactive_balance_lab",
+                "title": "Variables on Both Sides",
+                "subtitle": "The Conceptual Framework: The Balance Scale Analogy"
+            },
+            {
+                "type": "html",
+                "html": "<div class='grid grid-cols-1 md:grid-cols-2 gap-6'><div class='bg-white p-6 rounded-xl border-l-4 border-amber-500 shadow-sm'><h3 class='font-bold text-stone-800 mb-2 flex items-center'><i class='fas fa-arrow-up-right-from-square mr-2 text-amber-500'></i>The \"Move Smallest\" Rule</h3><p class='text-stone-600 text-sm mb-4'>Always move the smaller variable term to the side of the larger variable term.</p><div class='bg-stone-50 p-4 rounded-lg text-sm border border-stone-200 space-y-2 font-mono text-stone-700'><p><span class='text-stone-400'>// Compare</span> <br> 3x vs 5x</p><p><span class='text-stone-400'>// Decision</span> <br> 3 < 5, so subtract 3x</p><p><span class='text-stone-400'>// Benefit</span> <br> Result is positive 2x</p></div></div><div class='bg-white p-6 rounded-xl border-l-4 border-stone-500 shadow-sm'><h3 class='font-bold text-stone-800 mb-2 flex items-center'><i class='fas fa-bars mr-2 text-stone-500'></i>The \"Fence\" Method</h3><p class='text-stone-600 text-sm mb-4'>Draw a vertical line through the equals sign.</p><ul class='text-sm space-y-3 text-stone-600'><li class='flex items-start'><span class='bg-stone-200 text-stone-600 rounded px-1 text-xs font-bold mr-2 mt-0.5'>RULE 1</span> If you cross the fence, use the Inverse Operation.</li><li class='flex items-start'><span class='bg-stone-200 text-stone-600 rounded px-1 text-xs font-bold mr-2 mt-0.5'>RULE 2</span> If you stay on the same side, just simplify.</li></ul></div></div>"
+            }
+          ]
+        },
+        "phase2": {
+          "title": "Phase 2: Literal Equations",
+          "content": [
+            {
+                "type": "interactive_literal_eq",
+                "title": "Literal Equations",
+                "subtitle": "Goal: Isolate $y$ for graphing ($y = mx + b$)."
+            }
+          ]
+        },
+        "phase3": {
+          "title": "Phase 3: Video Resources",
+          "content": [
+             {
+                 "type": "video_analysis",
+                 "videos": [
+                     {
+                         "title": "The 'Why' of Balance",
+                         "author": "Khan Academy",
+                         "tag": "Conceptual",
+                         "desc": "Best for students who ask 'But why do we do that?'",
+                         "url": "https://www.youtube.com/watch?v=5FBDqY41GjU",
+                         "analysis": "<p class='mb-2'><strong>Review:</strong> Sal Khan’s approach is foundational. He avoids starting with numbers, instead using a visual balance scale animation where he physically removes 'weights'.</p><p><strong>Why it works:</strong> It anchors the 'Subtraction Property of Equality' in physical intuition, preventing the student from viewing algebra as a set of arbitrary rules.</p>"
+                     },
+                     {
+                         "title": "Variables on Both Sides",
+                         "author": "Math with Mr. J",
+                         "tag": "Procedural",
+                         "desc": "Best for learning the mechanics and steps.",
+                         "url": "https://www.youtube.com/watch?v=eZsyV0ISzV8",
+                         "analysis": "<p class='mb-2'><strong>Review:</strong> Mr. J acts as a drill sergeant for procedure. His bold handwriting and color-coding (red for inverse operations) reduce visual clutter.</p><p><strong>Why it works:</strong> According to Cognitive Load Theory, this clean presentation helps novices focus entirely on the algorithm: Move Variables → Move Constants → Divide.</p>"
+                     }
+                 ]
+             }
+          ]
+        },
+        "phase4": {
+          "title": "Phase 4: Printable Notes",
+          "content": [
+             {
+                 "type": "html",
+                 "html": "<div class='bg-white p-8 md:p-12 shadow-lg rounded-xl border border-stone-200'><div class='flex justify-between items-start border-b-2 border-stone-800 pb-6 mb-8'><div><h1 class='text-3xl font-bold text-stone-900 uppercase tracking-tight'>Study Guide</h1><p class='text-stone-500 mt-1 font-mono text-sm'>The Algebraic Foundation</p></div><i class='fas fa-bookmark text-4xl text-amber-500'></i></div><div class='space-y-12'><section><h3 class='text-xl font-bold text-stone-800 mb-4 flex items-center'><span class='bg-stone-800 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 shadow-md'>1</span> The Balance Scale (Variables on Both Sides)</h3><div class='pl-0 md:pl-11'><p class='text-stone-700 italic mb-6 bg-stone-50 p-4 border-l-4 border-amber-500 rounded-r'>\"Algebra is a game of fairness. If you change one side, you must change the other.\"</p><div class='bg-white p-6 rounded-lg border border-stone-200 mb-4 shadow-sm'><h4 class='font-bold text-amber-700 text-sm uppercase mb-4 tracking-wider'>Step-by-Step Recipe</h4><ol class='list-decimal list-inside space-y-3 text-stone-700 text-sm md:text-base'><li class='pl-2'><strong>Identify Variables:</strong> Find terms with letters ($3x$, $5x$).</li><li class='pl-2'><strong>Move Smallest:</strong> Subtract the smaller variable term from both sides.</li><li class='pl-2'><strong>Isolate:</strong> Move the constant numbers away from the variable.</li><li class='pl-2'><strong>Divide:</strong> Divide by the coefficient to find $x$.</li></ol></div></div></section><section><h3 class='text-xl font-bold text-stone-800 mb-4 flex items-center'><span class='bg-stone-800 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 shadow-md'>2</span> Literal Equations (Solving for y)</h3><div class='pl-0 md:pl-11'><p class='text-stone-700 italic mb-6 bg-stone-50 p-4 border-l-4 border-amber-500 rounded-r'>\"Think of it as furniture rearrangement. You don't throw the sofa out, you just move it to the other wall.\"</p><div class='bg-white p-6 rounded-lg border border-stone-200 mb-4 shadow-sm'><h4 class='font-bold text-amber-700 text-sm uppercase mb-4 tracking-wider'>The \"Undo\" Method</h4><div class='space-y-4 text-sm md:text-base text-stone-700'><div class='flex flex-col md:flex-row md:items-center'><span class='w-32 font-bold text-stone-900'>Goal:</span><span>Get $y$ alone on the left side ($y = ...$)</span></div><div class='flex flex-col md:flex-row md:items-center'><span class='w-32 font-bold text-stone-900'>The Catch:</span><span>You cannot combine unlike terms. <span class='bg-red-50 text-red-700 px-1 rounded'>$5 - 2x$ is NOT $3x$</span>.</span></div><div class='flex flex-col md:flex-row md:items-start'><span class='w-32 font-bold text-stone-900 pt-1'>Tip:</span><span>Use the <strong>Heart Method</strong> when dividing. Divide every single term individually.</span></div></div></div></div></section></div><div class='mt-12 pt-6 border-t border-stone-200 text-center text-stone-400 text-sm'><i class='fas fa-print mr-2'></i> Print this guide for your notebook.</div></div>"
+             }
+          ]
+        },
+        "phase5": {
+            "title": "Phase 5: Mastery Quiz",
+            "content": [
+                { "type": "mastery_quiz_advanced" }
+            ]
+        }
+      },
+      "quiz_data": [
+                {
+                    "id": "A1",
+                    "q": "Solve for x: <span class='font-mono bg-stone-100 px-1'>5x - 3 = 3x + 7</span>",
+                    "opts": ["x = 2", "x = 5", "x = 10", "x = 4"],
+                    "correct": 1,
+                    "analysis": "<h4 class='font-bold text-amber-700 mb-2'>Problem A1 Analysis</h4><p class='mb-2 text-sm font-semibold'>Cognitive Check: Variables are on both sides. Apply 'Move Smallest'.</p><ul class='list-disc list-inside space-y-1 text-sm text-stone-700'><li>Compare $5x$ and $3x$. Subtract $3x$ from both sides ($2x - 3 = 7$).</li><li>Add 3 to both sides ($2x = 10$).</li><li>Divide by 2 ($x = 5$).</li></ul>"
+                },
+                {
+                    "id": "A2",
+                    "q": "Solve for k: <span class='font-mono bg-stone-100 px-1'>12 - 2k = 3k + 2</span>",
+                    "opts": ["k = 2", "k = -2", "k = 10", "k = 5"],
+                    "correct": 0,
+                    "analysis": "<h4 class='font-bold text-amber-700 mb-2'>Problem A2 Analysis</h4><p class='mb-2 text-sm font-semibold text-red-600'><i class='fas fa-exclamation-triangle mr-1'></i> Trap Warning: Negative coefficients.</p><ul class='list-disc list-inside space-y-1 text-sm text-stone-700'><li>Comparing $-2k$ and $3k$, $-2k$ is smaller. Add $2k$ to both sides.</li><li>$12 = 5k + 2$.</li><li>Subtract 2: $10 = 5k$. Divide by 5: $k = 2$.</li></ul>"
+                },
+                {
+                    "id": "B1",
+                    "q": "Rewrite in Slope-Intercept Form: <span class='font-mono bg-stone-100 px-1'>4x + 2y = 12</span>",
+                    "opts": ["y = 2x + 6", "y = -2x + 6", "y = -4x + 12", "y = 2x - 6"],
+                    "correct": 1,
+                    "analysis": "<h4 class='font-bold text-amber-700 mb-2'>Problem B1 Analysis</h4><ul class='list-disc list-inside space-y-1 text-sm text-stone-700'><li>Subtract $4x$: $2y = -4x + 12$.</li><li>Divide everything by 2: $y = -2x + 6$.</li><li>Slope is -2, Intercept is 6.</li></ul>"
+                },
+                {
+                    "id": "B2",
+                    "q": "Rewrite in Slope-Intercept Form: <span class='font-mono bg-stone-100 px-1'>3x - 4y = 8</span>",
+                    "opts": ["y = 3/4x - 2", "y = -3/4x + 2", "y = 3/4x + 2", "y = 3x - 2"],
+                    "correct": 0,
+                    "analysis": "<h4 class='font-bold text-amber-700 mb-2'>Problem B2 Analysis</h4><p class='mb-2 text-sm font-semibold text-amber-600'>Attention: The negative sign stays with the y.</p><ul class='list-disc list-inside space-y-1 text-sm text-stone-700'><li>Subtract $3x$: $-4y = -3x + 8$.</li><li>Divide by -4. Note: <span class='fraction'><span class='numerator'>-3</span><span class='denominator'>-4</span></span> becomes positive <span class='fraction'><span class='numerator'>3</span><span class='denominator'>4</span></span>.</li><li>$8 / -4 = -2$. Final: $y = <span class='fraction'><span class='numerator'>3</span><span class='denominator'>4</span></span>x - 2$.</li></ul>"
+                }
+      ]
+    },
+    "csheet": {
+      "id": "csheet",
+      "title": "Math Finals Cheat Sheet",
+      "subtitle": "Systems of Equations & Inequalities",
+      "theme": "indigo",
+      "navigation": [
+        {"id": "basics", "label": "Graphing Basics", "icon": "fa-chart-line"},
+        {"id": "algebra", "label": "Algebra Tools", "icon": "fa-calculator"},
+        {"id": "inequalities", "label": "Inequalities", "icon": "fa-fill-drip"},
+        {"id": "strategy", "label": "Strategy & Resources", "icon": "fa-chess-knight"},
+        {"id": "reminders", "label": "Key Reminders", "icon": "fa-exclamation-circle"}
+      ],
+      "pages": {
+        "basics": {
+          "title": "1. Graphing Basics",
+          "content": [
+            {
+              "type": "box",
+              "style": "info",
+              "content": "<div class='font-mono font-bold text-lg text-center mb-3 bg-white rounded py-2 border border-sky-100 shadow-sm'>y = <span class='text-purple-600'>m</span>x + <span class='text-orange-600'>b</span></div><div class='grid grid-cols-2 gap-4 text-sm'><div class='bg-white/50 p-2 rounded'><span class='font-bold text-orange-600 block mb-1'>b (Begin)</span><span class='text-slate-600'>Y-Intercept. Plot this point on the vertical line first.</span></div><div class='bg-white/50 p-2 rounded'><span class='font-bold text-purple-600 block mb-1'>m (Move)</span><span class='text-slate-600'>Slope = Rise / Run. <br>Ex: $-2/3$ means <br>Down 2, Right 3.</span></div></div>"
+            },
+            {
+              "type": "box",
+              "title": "System Types",
+              "content": "<ul class='text-sm space-y-3'><li class='flex gap-3 items-start'><i class='fas fa-check-circle text-green-500 mt-1'></i><div><strong class='text-slate-800'>One Solution (Intersect)</strong><p class='text-slate-500 text-xs'>Different slopes ($m$). They cross at one $(x,y)$.</p></div></li><li class='flex gap-3 items-start'><i class='fas fa-times-circle text-red-500 mt-1'></i><div><strong class='text-slate-800'>No Solution (Parallel)</strong><p class='text-slate-500 text-xs'>Same slope ($m$), different start ($b$). Never touch.</p></div></li><li class='flex gap-3 items-start'><i class='fas fa-infinity text-blue-500 mt-1'></i><div><strong class='text-slate-800'>Infinite (Same Line)</strong><p class='text-slate-500 text-xs'>Same slope ($m$), same start ($b$). It's the same line.</p></div></li></ul>"
+            }
+          ]
+        },
+        "algebra": {
+          "title": "2. The Algebra Tools",
+          "content": [
+            {
+              "type": "card",
+              "title": "Substitution",
+              "icon": "fa-user-secret",
+              "badge": "Best for Isolated Vars",
+              "theme": "violet",
+              "content": "<p class='font-mono text-xs bg-slate-50 p-2 rounded border border-slate-100 text-slate-600 mb-2'>Ex: $y = \\color{red}2x$ and $x + y = 12$</p><ol class='list-decimal pl-4 space-y-2 text-slate-600 text-sm'><li><strong>Plug In:</strong> Put $(\\color{red}2x)$ into $y$ in eq 2. <br><span class='font-mono text-xs text-slate-400'>$\\rightarrow x + (2x) = 12$</span></li><li><strong>Solve:</strong> $3x = 12 \\rightarrow \\mathbf{x = 4}$</li><li><strong>Finish:</strong> Plug $x$ back to find $y$. <br><span class='font-mono text-xs text-slate-400'>$\\rightarrow y = 2(4) = 8$. Ans: $(4, 8)$</span></li></ol>"
+            },
+            {
+              "type": "card",
+              "title": "Elimination",
+              "icon": "fa-eraser",
+              "badge": "Best for Standard Form",
+              "theme": "pink",
+              "content": "<p class='font-mono text-xs bg-slate-50 p-2 rounded border border-slate-100 text-slate-600 mb-2'>Ex: $2x + y = 10$ and $2x - y = 2$</p><ol class='list-decimal pl-4 space-y-2 text-slate-600 text-sm'><li><strong>Stack & Add:</strong> Add equations vertically. <br><span class='font-mono text-xs text-slate-400'>$\\rightarrow (2x+2x) + (y-y) = 12 \\rightarrow 4x = 12$</span></li><li><strong>Solve:</strong> $\\mathbf{x = 3}$</li><li><strong>Finish:</strong> Plug $x$ back to find $y$. <br><span class='font-mono text-xs text-slate-400'>$\\rightarrow 2(3) + y = 10 \\rightarrow y=4$</span></li></ol>"
+            }
+          ]
+        },
+        "inequalities": {
+          "title": "3. Inequalities Region",
+          "content": [
+            {
+              "type": "grid",
+              "columns": 2,
+              "content": [
+                "<div class='bg-white border border-dashed border-slate-300 p-3 rounded-lg text-center shadow-sm'><div class='font-mono text-xl font-bold mb-1 text-slate-800'>&lt; &gt;</div><div class='text-sm font-bold text-orange-600'>Dashed Line</div><div class='text-[10px] text-slate-400 uppercase font-bold mt-1'>Strict (No Touching)</div></div>",
+                "<div class='bg-white border-2 border-slate-800 p-3 rounded-lg text-center shadow-sm'><div class='font-mono text-xl font-bold mb-1 text-slate-800'>&le; &ge;</div><div class='text-sm font-bold text-slate-800'>Solid Line</div><div class='text-[10px] text-slate-400 uppercase font-bold mt-1'>Inclusive (Safe)</div></div>"
+              ]
+            },
+            {
+              "type": "box",
+              "style": "warning",
+              "title": "Shading Strategy",
+              "content": "<ul class='text-sm space-y-3'><li class='flex items-start gap-3'><span class='bg-white text-orange-600 font-bold w-5 h-5 flex items-center justify-center rounded-full border border-orange-200 text-xs mt-0.5 shrink-0'>1</span><span class='text-orange-900'><strong>Is y alone?</strong><br> $y >$ shade UP (sky)<br> $y <$ shade DOWN (ground).</span></li><li class='flex items-start gap-3'><span class='bg-white text-orange-600 font-bold w-5 h-5 flex items-center justify-center rounded-full border border-orange-200 text-xs mt-0.5 shrink-0'>2</span><span class='text-orange-900'><strong>Test Point (0,0):</strong> Plug in $(0,0)$. <br>True statement ($0 < 10$)? Shade $(0,0)$ side.<br>False statement? Shade other side.</span></li><li class='flex items-start gap-3 mt-4 pt-3 border-t border-orange-200/50'><span class='bg-red-500 text-white font-bold w-5 h-5 flex items-center justify-center rounded-full text-xs mt-0.5 shrink-0'>!</span><span class='text-red-700 font-semibold'><strong>Flip Warning:</strong> If you multiply or divide by a NEGATIVE number, FLIP the sign!</span></li></ul>"
+            }
+          ]
+        },
+        "strategy": {
+          "title": "4. Strategy & Resources",
+          "content": [
+            {
+              "type": "list",
+              "items": [
+                 {"label": "Both equal y=?", "value": "Set Equal"},
+                 {"label": "One var alone?", "value": "Substitution"},
+                 {"label": "Stacked vars?", "value": "Elimination"}
+              ]
+            },
+            {
+              "type": "links",
+              "title": "One-Click Help (Khan Academy)",
+              "links": [
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:systems-of-equations", "text": "Systems Intro & Solving", "icon": "fab fa-youtube"},
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:inequalities-systems-graphs", "text": "Inequalities & Shading", "icon": "fab fa-youtube"}
+              ]
+            }
+          ]
+        },
+        "reminders": {
+          "title": "Key Reminders & Pitfalls",
+          "content": [
+            {
+              "type": "card_grid",
+              "cards": [
+                 {"title": "The 'Flip' Rule", "text": "When you multiply or divide by a negative number, you MUST flip the inequality symbol ($<$ becomes $>$).", "icon": "fa-retweet", "color": "red"},
+                 {"title": "Check Your Work", "text": "Found $(x,y)$? Plug it back into BOTH original equations. It must work for both!", "icon": "fa-check-double", "color": "green"},
+                 {"title": "The 'Disappearing Var'", "text": "If variables cancel out and you get $5=5$, it's Infinite Solutions. If you get $0=5$, it's No Solution.", "icon": "fa-ghost", "color": "slate"},
+                 {"title": "Slope Sanity Check", "text": "Going UP from left-to-right? Slope must be (+). Going DOWN? Slope must be (-).", "icon": "fa-chart-line", "color": "blue"}
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "mastering_lines": {
+      "id": "mastering_lines",
+      "title": "Graph Mastery",
+      "subtitle": "Phase 2: Visual Algebra",
+      "theme": "sky",
+      "navigation": [
+        {"id": "intro", "label": "Introduction", "icon": "fa-door-open"},
+        {"id": "graphing", "label": "1. Graphing (y=mx+b)", "icon": "fa-stairs"},
+        {"id": "parallel", "label": "2. Par & Perp Lines", "icon": "fa-equals"},
+        {"id": "resources", "label": "3. Video Guides", "icon": "fab fa-youtube"},
+        {"id": "notes", "label": "4. Cheat Sheet", "icon": "fa-print"},
+        {"id": "quiz", "label": "5. Mastery Quiz", "icon": "fa-tasks"}
+      ],
+      "pages": {
+        "intro": {
+          "title": "Introduction",
+          "content": [
+            {
+              "type": "hero",
+              "badge": "Phase 2",
+              "title": "Mastering the Line",
+              "text": "Now that you can move the numbers (Algebra), it's time to visualize them (Geometry). You are about to learn that every equation tells a story about a line."
+            },
+            {
+              "type": "grid",
+              "columns": 2,
+              "content": [
+                "<div class='bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-sky-300 transition-colors'><div class='w-12 h-12 bg-sky-100 rounded-lg flex items-center justify-center mb-6 text-sky-600 text-2xl'><i class='fas fa-compass'></i></div><h3 class='text-2xl font-bold text-slate-800 mb-3'>The \"GPS\" of Algebra</h3><p class='text-slate-600'>The equation <span class='font-mono bg-slate-100 px-1 rounded'>y = mx + b</span> is just a set of directions.</p><ul class='mt-4 space-y-2 text-sm text-slate-500'><li>• <strong>b</strong> tells you where to Start.</li><li>• <strong>m</strong> tells you how to Move.</li></ul></div>",
+                "<div class='bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-sky-300 transition-colors'><div class='w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-6 text-indigo-600 text-2xl'><i class='fas fa-train'></i></div><h3 class='text-2xl font-bold text-slate-800 mb-3'>Line Relationships</h3><p class='text-slate-600'>Once you know the \"Move\" (slope), you can create new lines that run parallel (like train tracks) or smash through at 90 degrees (perpendicular).</p></div>"
+              ]
+            },
+            {
+              "type": "cta",
+              "title": "Let's Draw Some Lines",
+              "text": "Start the interactive lesson.",
+              "button_text": "Start Graphing",
+              "link": "graphing",
+              "color": "slate"
+            }
+          ]
+        },
+        "graphing": {
+          "title": "1. Graphing Linear Functions",
+          "content": [
+            {
+              "type": "interactive_graphing",
+              "title": "Interactive Graph",
+              "subtitle": "The \"Begin and Move\" Method for y = mx + b"
+            }
+          ]
+        },
+        "parallel": {
+          "title": "2. Parallel & Perpendicular",
+          "content": [
+            {
+              "type": "interactive_slope_machine",
+              "title": "The Slope Machine",
+              "subtitle": "How slopes relate to each other."
+            },
+            {
+              "type": "grid",
+              "columns": 2,
+              "content": [
+                "<div class='bg-white p-6 rounded-xl border border-slate-200 shadow-sm'><h4 class='font-bold text-slate-800 flex items-center mb-3'><i class='fas fa-equals text-sky-500 mr-2'></i> Parallel Lines</h4><p class='text-sm text-slate-600 mb-2'>Think of train tracks. They must have the exact same steepness to never touch.</p><div class='bg-slate-100 p-3 rounded font-mono text-sm text-center'>m<sub>1</sub> = m<sub>2</sub></div></div>",
+                "<div class='bg-white p-6 rounded-xl border border-slate-200 shadow-sm'><h4 class='font-bold text-slate-800 flex items-center mb-3'><i class='fas fa-plus text-indigo-500 mr-2'></i> Perpendicular Lines</h4><p class='text-sm text-slate-600 mb-2'>They crash at 90°. You must do the \"Negative Reciprocal\".</p><ul class='text-sm text-slate-600 list-disc list-inside mb-2'><li>Flip the fraction.</li><li>Switch the sign (+/-).</li></ul></div>"
+              ]
+            }
+          ]
+        },
+        "resources": {
+          "title": "3. Video Guides",
+          "content": [
+            {
+              "type": "links",
+              "links": [
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:forms-of-linear-equations/x2f8bb11595b61c86:intro-to-slope-intercept-form/v/slope-intercept-form", "text": "Khan Academy: Slope-intercept form", "desc": "Sal Khan draws multiple lines, showing exactly how b sets the start point and m sets the angle.", "icon": "fab fa-youtube"},
+                {"url": "https://www.youtube.com/watch?v=LTb2-LE7StE", "text": "Math with Mr. J: Parallel and Perpendicular Lines", "desc": "A clear, procedural guide on how to identify slopes and write new equations.", "icon": "fab fa-youtube"}
+              ]
+            }
+          ]
+        },
+        "notes": {
+          "title": "4. Cheat Sheet",
+          "content": [
+            {
+              "type": "html",
+              "html": "<div class='bg-white p-10 rounded-xl shadow-sm border border-slate-200 print:border-0 print:shadow-none'><div class='flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8'><div><h1 class='text-3xl font-bold text-slate-900 uppercase tracking-tight'>Cheat Sheet</h1><p class='text-slate-500 mt-1 font-mono text-sm'>Phase 2: Mastering the Line</p></div><i class='fas fa-highlighter text-3xl text-yellow-400'></i></div><div class='space-y-10'><section><h3 class='text-lg font-bold text-slate-900 mb-4 border-l-4 border-sky-500 pl-3'>1. Graphing $y = mx + b$</h3><div class='grid grid-cols-1 md:grid-cols-2 gap-6'><div class='bg-slate-50 p-4 rounded border border-slate-200'><strong class='text-sky-600 block mb-1'>b = BEGIN (Y-Intercept)</strong><p class='text-sm text-slate-700'>Always graph this first! Put a dot on the Y-axis (the vertical line) at this number.</p></div><div class='bg-slate-50 p-4 rounded border border-slate-200'><strong class='text-sky-600 block mb-1'>m = MOVE (Slope)</strong><p class='text-sm text-slate-700'>From your beginning dot, count the <span class='font-mono'>Rise/Run</span>.</p><ul class='text-xs text-slate-500 mt-2 list-disc pl-4'><li>Top number: Up (+) or Down (-)</li><li>Bottom number: Always Right</li></ul></div></div></section><section><h3 class='text-lg font-bold text-slate-900 mb-4 border-l-4 border-indigo-500 pl-3'>2. Slope Relationships</h3><table class='w-full text-sm text-left border-collapse'><tr class='bg-slate-100 border-b border-slate-200'><th class='p-3'>Type</th><th class='p-3'>Rule</th><th class='p-3'>Example</th></tr><tr class='border-b border-slate-100'><td class='p-3 font-bold'>Parallel</td><td class='p-3'>Same Slope ($m_1 = m_2$)</td><td class='p-3'>$2/3 \\rightarrow 2/3$</td></tr><tr class='border-b border-slate-100'><td class='p-3 font-bold'>Perpendicular</td><td class='p-3'>Negative Reciprocal (\"Flip & Switch\")</td><td class='p-3'>$2/3 \\rightarrow -3/2$</td></tr></table></section></div></div>"
+            }
+          ]
+        },
+        "quiz": {
+          "title": "5. Mastery Quiz",
+          "content": [
+            { "type": "mastery_quiz" }
+          ]
+        }
+      },
+      "quiz_data": [
+                {
+                    "q": "In the equation <span class='font-mono bg-slate-100 px-1'>y = 3x - 2</span>, where do you start graphing?",
+                    "opts": ["At 3 on the X-axis", "At -2 on the Y-axis", "At 3 on the Y-axis", "At 0"],
+                    "correct": 1,
+                    "expl": "The b value (-2) is the Begin point on the Y-axis."
+                },
+                {
+                    "q": "What does a slope of <span class='fraction'><span class='numerator'>2</span><span class='denominator'>3</span></span> mean?",
+                    "opts": ["Up 2, Right 3", "Up 3, Right 2", "Down 2, Right 3", "Right 2, Up 3"],
+                    "correct": 0,
+                    "expl": "Slope is Rise over Run. Top number (2) is Rise (Up), bottom (3) is Run (Right)."
+                },
+                {
+                    "q": "Which slope is parallel to <span class='font-mono'>m = 4</span>?",
+                    "opts": ["-4", "1/4", "4", "-1/4"],
+                    "correct": 2,
+                    "expl": "Parallel lines have the exact same slope."
+                },
+                {
+                    "q": "Which slope is perpendicular to <span class='fraction'><span class='numerator'>2</span><span class='denominator'>5</span></span>?",
+                    "opts": ["2/5", "5/2", "-2/5", "-5/2"],
+                    "correct": 3,
+                    "expl": "Perpendicular slopes are Negative Reciprocals. Flip 2/5 to 5/2, then switch sign to negative."
+                }
+      ]
+    },
+    "strategy_guide": {
+      "id": "strategy_guide",
+      "title": "MathQuest: Finals Strategy Guide",
+      "subtitle": "The Strategy Guide",
+      "theme": "emerald",
+      "navigation": [
+        {"id": "intro", "label": "Mission Control", "icon": "fa-home"},
+        {"id": "level1", "label": "Level 1: The Elevator", "sub": "Vertical Lines", "icon": "fa-arrows-up-down"},
+        {"id": "level2", "label": "Level 2: The Meetup", "sub": "Systems", "icon": "fa-handshake"},
+        {"id": "level3", "label": "Level 3: The Map", "sub": "Point-Slope", "icon": "fa-search-location"},
+        {"id": "level4", "label": "Level 4: The Copycat", "sub": "Parallel Algebra", "icon": "fa-copy"},
+        {"id": "cheatsheet", "label": "Cheat Sheet", "icon": "fa-scroll"},
+        {"id": "quiz", "label": "Mastery Quiz", "icon": "fa-star"}
+      ],
+      "pages": {
+        "intro": {
+          "title": "Mission Control",
+          "content": [
+            {
+              "type": "hero",
+              "badge": "Ready Player One",
+              "title": "Mission Control",
+              "text": "Math isn't magic. It's just following a recipe. We've translated the confusing textbook language into plain English for your finals."
+            },
+            {
+              "type": "card_grid",
+              "cards": [
+                {
+                  "title": "The Elevator Trick",
+                  "text": "How to solve 'Vertical Line' problems without doing any actual math.",
+                  "icon": "fa-building",
+                  "link": "level1",
+                  "color": "purple"
+                },
+                {
+                  "title": "The Copycat Strategy",
+                  "text": "Solving the hardest problem on the test: Parallel Lines using algebra.",
+                  "icon": "fa-robot",
+                  "link": "level4",
+                  "color": "red"
+                }
+              ]
+            },
+            {
+              "type": "cta",
+              "title": "Don't Memorize. Understand.",
+              "text": "Check the 'Cheat Sheet' for a simple summary you can print out.",
+              "button_text": "Open Cheat Sheet",
+              "link": "cheatsheet",
+              "color": "yellow"
+            }
+          ]
+        },
+        "level1": {
+          "title": "Level 1: The Elevator",
+          "content": [
+            {
+                "type": "html",
+                "html": "<div class='bg-white rounded-3xl p-8 shadow-lg border border-slate-100 mb-8 relative overflow-hidden'><div class='flex flex-col md:flex-row gap-8'><div class='flex-1'><h3 class='text-2xl font-bold text-slate-800 mb-4'>Vertical Lines</h3><p class='text-lg text-slate-600 mb-6 leading-relaxed'>Imagine a glass elevator stuck in a building. It can go <strong>UP</strong> and <strong>DOWN</strong> all day, but it can never move left or right. It is stuck on one x-number.</p><div class='bg-purple-50 p-4 rounded-xl border border-purple-200 font-mono text-center text-purple-600 font-bold text-xl mb-4'>x = number</div></div><div class='w-full md:w-64 h-64 graph-grid relative rounded-xl border border-slate-200 shadow-inner'><div class='axis-x'></div><div class='axis-y'></div><div class='absolute top-0 bottom-0 w-1 bg-green-500 left-[30%] shadow-lg'></div><div class='absolute left-[32%] top-[10%] bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded shadow'>x = -4</div></div></div></div>"
+            },
+            {
+                "type": "html",
+                "html": "<div class='bg-slate-800 text-white rounded-3xl p-8 shadow-2xl relative overflow-hidden mb-12'><div class='relative z-10'><h3 class='text-2xl font-bold text-green-400 mb-2'><i class='fas fa-check-circle mr-2'></i>Example Solution</h3><p class='text-slate-300 mb-6 text-lg'>From your uploaded problem (Prob 3):</p><div class='grid grid-cols-1 md:grid-cols-2 gap-8 items-center'><div class='space-y-4'><div class='flex items-start gap-4'><div class='w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-green-400'>1</div><p>The problem asks for a line parallel to the vertical one shown.</p></div><div class='flex items-start gap-4'><div class='w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-green-400'>2</div><p>The target point is <strong>(-8, 4)</strong>.</p></div><div class='flex items-start gap-4'><div class='w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-green-400'>3</div><p>Vertical lines use the <strong>X</strong> value. Ignore the Y.</p></div></div><div class='bg-slate-700/50 p-6 rounded-2xl border border-slate-600 text-center'><span class='text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block'>The Answer</span><span class='text-5xl font-mono font-bold text-white'>x = -8</span></div></div></div></div>"
+            },
+            {
+                "type": "mini_quiz",
+                "level": 1
+            }
+          ]
+        },
+        "level2": {
+            "title": "Level 2: The Meetup",
+            "content": [
+                {
+                    "type": "html",
+                    "html": "<div class='bg-white rounded-3xl p-8 shadow-lg border border-slate-100 mb-8'><div class='flex flex-col md:flex-row gap-8 items-center'><div class='flex-1'><h3 class='text-2xl font-bold text-slate-800 mb-4'>Systems of Equations</h3><p class='text-lg text-slate-600 mb-6 leading-relaxed'>Two lines on a graph are like two people walking. The 'Solution' is the exact coordinate where they crash into each other.</p></div><div class='w-full md:w-64 h-64 graph-grid relative rounded-xl border border-slate-200 shadow-inner'><div class='axis-x'></div><div class='axis-y'></div><div class='absolute w-[140%] h-0.5 bg-blue-500 top-[60%] left-[-20%] transform -rotate-12'></div><div class='absolute w-[140%] h-0.5 bg-red-500 top-[30%] left-[-20%] transform rotate-45'></div><div class='absolute w-3 h-3 bg-slate-900 rounded-full left-[48%] top-[55%] border-2 border-white shadow-lg z-10'></div><div class='absolute left-[55%] top-[50%] bg-slate-800 text-white text-[10px] font-bold px-1 rounded opacity-80'>(x, y)</div></div></div></div>"
+                },
+                {
+                    "type": "mini_quiz",
+                    "level": 2
+                }
+            ]
+        },
+        "level3": {
+            "title": "Level 3: The Map",
+            "content": [
+                 {
+                    "type": "html",
+                    "html": "<div class='bg-red-50 rounded-3xl p-8 mb-8 border-l-8 border-red-500 flex items-start gap-6'><div class='text-4xl text-red-500 animate-pulse hidden md:block'><i class='fas fa-exclamation-triangle'></i></div><div><h4 class='font-bold text-red-900 text-xl mb-2'>⚠️ TRAP ALERT: The Scale</h4><p class='text-red-800 leading-relaxed'>Look at Problem 4. The boxes count by <strong>20s</strong>, not 1s!<br>If you count '1 box', you are actually counting '20'.</p></div></div>"
+                 },
+                 {
+                    "type": "mini_quiz",
+                    "level": 3
+                 }
+            ]
+        },
+        "level4": {
+            "title": "Level 4: The Copycat",
+            "content": [
+                {
+                    "type": "html",
+                    "html": "<div class='bg-white rounded-3xl p-8 shadow-lg border border-slate-100 mb-8'><div class='flex flex-col md:flex-row gap-8 items-center'><div class='flex-1'><h3 class='text-2xl font-bold text-slate-800 mb-4'>Parallel Lines</h3><p class='text-lg text-slate-600 mb-6 leading-relaxed'>Parallel lines copy each other's 'Move' (Slope), but they start at different places.</p><div class='bg-slate-50 p-4 rounded-xl border-l-4 border-red-500'><p class='text-xs uppercase font-bold text-red-400'>Copycat Rule</p><p class='font-mono font-bold text-lg text-slate-600'>If y = <span class='text-red-600'>8</span>x + 2...</p><p class='font-mono font-bold text-lg text-slate-600'>New line is y = <span class='text-red-600'>8</span>x + b</p></div></div><div class='w-full md:w-64 h-64 graph-grid relative rounded-xl border border-slate-200 shadow-inner overflow-hidden'><div class='axis-x'></div><div class='axis-y'></div><div class='absolute w-[200%] h-0.5 bg-slate-400 top-[80%] left-[-50%] transform -rotate-45'></div><div class='absolute w-[200%] h-0.5 bg-red-500 top-[50%] left-[-50%] transform -rotate-45 shadow-lg'></div><div class='absolute left-[60%] top-[20%] text-red-600 text-[10px] font-bold bg-white px-1 border border-red-200 rounded'>Same Slope!</div></div></div></div>"
+                },
+                {
+                    "type": "mini_quiz",
+                    "level": 4
+                }
+            ]
+        },
+        "cheatsheet": {
+            "title": "Cheat Sheet",
+            "content": [
+                {
+                    "type": "html",
+                    "html": "<div class='bg-white p-8 md:p-12 shadow-2xl text-slate-800 relative rounded-xl border border-slate-200 overflow-hidden'><div class='absolute inset-0 pointer-events-none opacity-5' style='background-image: linear-gradient(#000 1px, transparent 1px); background-size: 100% 2rem;'></div><div class='absolute left-12 top-0 bottom-0 w-0.5 bg-red-200'></div><div class='relative z-10 pl-8 md:pl-12'><div class='flex justify-between border-b-2 border-slate-800 pb-4 mb-8'><span class='font-hand text-3xl text-slate-700 font-bold'>Math Formulas</span><span class='font-hand text-xl text-slate-400'>Do Not Lose!</span></div><div class='grid grid-cols-1 md:grid-cols-2 gap-12'><div class='space-y-4'><h3 class='font-black text-slate-900 uppercase tracking-widest text-sm border-b border-yellow-400 inline-block'>1. The Golden Formulas</h3><div class='bg-yellow-50 p-4 rounded-lg border border-yellow-100'><p class='font-bold text-sm text-yellow-800 mb-1'>Slope-Intercept</p><p class='font-mono text-xl'>y = mx + b</p><p class='text-xs text-slate-500 mt-1'>m = move, b = begin</p></div></div><div class='space-y-4'><h3 class='font-black text-slate-900 uppercase tracking-widest text-sm border-b border-purple-400 inline-block'>2. HOY VUX (Special Lines)</h3><div class='flex gap-4'><div class='flex-1'><p class='font-black text-slate-800 text-lg'>HOY</p><ul class='text-sm text-slate-600 font-hand font-bold'><li>Horizontal</li><li>0 Slope</li><li>y = #</li></ul></div><div class='flex-1 border-l pl-4 border-slate-200'><p class='font-black text-slate-800 text-lg'>VUX</p><ul class='text-sm text-slate-600 font-hand font-bold'><li>Vertical</li><li>Undefined</li><li>x = #</li></ul></div></div></div></div></div></div>"
+                }
+            ]
+        },
+        "quiz": {
+            "title": "Mastery Quiz",
+            "content": [
+                {
+                    "type": "mastery_quiz"
+                }
+            ]
+        }
+      },
+      "quiz_data": [
+                {
+                    "id": 1,
+                    "level": 4,
+                    "question": "What is the slope of any line parallel to the line <span class='font-mono bg-slate-100 px-1 rounded'>y = 4x - 7</span>?",
+                    "options": [
+                        { "text": "4", "correct": true, "feedback": "Correct! Parallel lines always have identical slopes." },
+                        { "text": "-4", "correct": false, "feedback": "Careful. That would be a reflection, not parallel." },
+                        { "text": "1/4", "correct": false, "feedback": "That's the reciprocal. We want the EXACT same slope." },
+                        { "text": "-1/4", "correct": false, "feedback": "That would be perpendicular (negative reciprocal)." }
+                    ]
+                },
+                {
+                    "id": 2,
+                    "level": 1,
+                    "question": "Which equation represents a VERTICAL line passing through (-2, 5)?",
+                    "options": [
+                        { "text": "y = 5", "correct": false, "feedback": "y = number is always horizontal (floor/ceiling)." },
+                        { "text": "x = -2", "correct": true, "feedback": "Correct! Vertical lines are always x = something." },
+                        { "text": "y = -2", "correct": false, "feedback": "This is horizontal because it starts with y =." },
+                        { "text": "x = 5", "correct": false, "feedback": "Check the point again. The x-coordinate is -2." }
+                    ]
+                },
+                {
+                    "id": 3,
+                    "level": 3,
+                    "question": "Choose the correct Point-Slope equation for slope -3 passing through (2, -1).",
+                    "options": [
+                        { "text": "y - 1 = -3(x + 2)", "correct": false, "feedback": "Watch your signs! The formula has minus signs built in." },
+                        { "text": "y + 1 = -3(x - 2)", "correct": true, "feedback": "Perfect. y - (-1) becomes y + 1." },
+                        { "text": "y - 2 = -3(x + 1)", "correct": false, "feedback": "You swapped x and y!" },
+                        { "text": "y = -3x + 5", "correct": false, "feedback": "That's slope-intercept form, not point-slope." }
+                    ]
+                },
+                {
+                    "id": 4,
+                    "level": 2,
+                    "question": "If two lines intersect at point (-1, 3), what is the solution to the system?",
+                    "options": [
+                        { "text": "No solution", "correct": false, "feedback": "They intersect, so there IS a solution." },
+                        { "text": "(-1, 3)", "correct": true, "feedback": "Yes! The intersection point IS the solution." },
+                        { "text": "(3, -1)", "correct": false, "feedback": "Careful, you swapped x and y." },
+                        { "text": "Infinite solutions", "correct": false, "feedback": "That only happens if the lines are identical." }
+                    ]
+                },
+                {
+                    "id": 5,
+                    "level": 4,
+                    "question": "Find the equation of a line parallel to <span class='font-mono'>y = ½x + 3</span> passing through (4, 0).",
+                    "options": [
+                        { "text": "y = ½x - 2", "correct": true, "feedback": "Correct! Same slope (½), different intercept." },
+                        { "text": "y = 2x - 8", "correct": false, "feedback": "You flipped the slope. Parallel means SAME slope." },
+                        { "text": "y = -2x + 8", "correct": false, "feedback": "That's perpendicular." },
+                        { "text": "y = ½x + 4", "correct": false, "feedback": "Check your math for 'b' again." }
+                    ]
+                },
+                {
+                    "id": 6,
+                    "level": 1,
+                    "question": "What is the slope of the line <span class='font-mono'>x = 8</span>?",
+                    "options": [
+                        { "text": "0", "correct": false, "feedback": "0 slope is flat (horizontal). This line is vertical." },
+                        { "text": "8", "correct": false, "feedback": "8 is just the location, not the steepness." },
+                        { "text": "Undefined", "correct": true, "feedback": "Correct! Vertical lines have undefined slope (division by zero)." },
+                        { "text": "1", "correct": false, "feedback": "Slope of 1 is a diagonal line." }
+                    ]
+                },
+                {
+                    "id": 7,
+                    "level": 1,
+                    "question": "What is the slope of the line <span class='font-mono'>y = -3</span>?",
+                    "options": [
+                        { "text": "0", "correct": true, "feedback": "Correct! It's a flat horizontal line." },
+                        { "text": "-3", "correct": false, "feedback": "-3 is the y-intercept, not the slope." },
+                        { "text": "Undefined", "correct": false, "feedback": "Undefined is for vertical lines." },
+                        { "text": "1", "correct": false, "feedback": "Slope 1 is diagonal." }
+                    ]
+                },
+                {
+                    "id": 8,
+                    "level": 2,
+                    "question": "How many solutions for the system: <span class='font-mono'>y = 2x</span> and <span class='font-mono'>y = 2x + 1</span>?",
+                    "options": [
+                        { "text": "No solution", "correct": true, "feedback": "Correct! Same slope (2) means they are parallel and never touch." },
+                        { "text": "One solution", "correct": false, "feedback": "Do they have different slopes? No." },
+                        { "text": "Two solutions", "correct": false, "feedback": "Lines can never intersect exactly twice." },
+                        { "text": "Infinite solutions", "correct": false, "feedback": "Are they the same line? No, different y-intercepts." }
+                    ]
+                },
+                {
+                    "id": 9,
+                    "level": 1,
+                    "question": "Which equation is a horizontal line through (0, 5)?",
+                    "options": [
+                        { "text": "y = 5", "correct": true, "feedback": "Yes! Horizontal is y = number." },
+                        { "text": "x = 5", "correct": false, "feedback": "x = 5 is vertical." },
+                        { "text": "y = 5x", "correct": false, "feedback": "That's a diagonal line with slope 5." },
+                        { "text": "x = 0", "correct": false, "feedback": "That's the y-axis (vertical)." }
+                    ]
+                },
+                {
+                    "id": 10,
+                    "level": 3,
+                    "question": "In <span class='font-mono'>y - y1 = m(x - x1)</span>, what is 'm'?",
+                    "options": [
+                        { "text": "Slope", "correct": true, "feedback": "Always! m is for Move/Slope." },
+                        { "text": "y-intercept", "correct": false, "feedback": "b is usually y-intercept." },
+                        { "text": "x-coordinate", "correct": false, "feedback": "x1 is the x-coordinate." },
+                        { "text": "y-coordinate", "correct": false, "feedback": "y1 is the y-coordinate." }
+                    ]
+                }
+      ]
+    },
+    "systems_inequalities": {
+      "id": "systems_inequalities",
+      "title": "Systems & Graphs",
+      "subtitle": "Phase 3 & 4 Finals Prep",
+      "theme": "indigo",
+      "navigation": [
+        {"id": "intro", "label": "Start Here", "icon": "fa-flag-checkered"},
+        {"id": "visual-systems", "label": "Visual Solutions", "icon": "fa-eye"},
+        {"id": "algebra-systems", "label": "Subst. & Elim.", "icon": "fa-calculator"},
+        {"id": "strategy", "label": "Choosing Strategy", "icon": "fa-chess-knight"},
+        {"id": "inequalities", "label": "Shading Regions", "icon": "fa-fill-drip"},
+        {"id": "resources", "label": "Video Guides", "icon": "fab fa-youtube"},
+        {"id": "quiz", "label": "Final Check", "icon": "fa-clipboard-check"}
+      ],
+      "pages": {
+        "intro": {
+          "title": "Start Here",
+          "content": [
+            {
+              "type": "hero",
+              "badge": "Finals Prep",
+              "title": "Where Lines Collide",
+              "text": "You mastered drawing one line. Now we put <strong>two</strong> lines on the graph and ask: \"Where do they meet?\" This is the heart of Systems of Equations."
+            },
+            {
+              "type": "grid",
+              "columns": 3,
+              "content": [
+                "<div class='bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-indigo-300 transition-all'><div class='w-12 h-12 bg-sky-100 rounded-lg flex items-center justify-center mb-4 text-sky-600 text-xl'><i class='fas fa-crosshairs'></i></div><h3 class='font-bold text-slate-800 text-lg mb-2'>1. The Intersection</h3><p class='text-sm text-slate-600'>The \"Solution\" is just the coordinate point $(x, y)$ where two lines cross paths.</p></div>",
+                "<div class='bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-violet-300 transition-all'><div class='w-12 h-12 bg-violet-100 rounded-lg flex items-center justify-center mb-4 text-violet-600 text-xl'><i class='fas fa-tools'></i></div><h3 class='font-bold text-slate-800 text-lg mb-2'>2. The Tools</h3><p class='text-sm text-slate-600'>Sometimes graphing is messy. We use algebra tools (Substitution & Elimination) to get exact answers.</p></div>",
+                "<div class='bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-orange-300 transition-all'><div class='w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4 text-orange-600 text-xl'><i class='fas fa-cloud-showers-heavy'></i></div><h3 class='font-bold text-slate-800 text-lg mb-2'>3. The Shading</h3><p class='text-sm text-slate-600'>Finally, we handle Inequalities ($<$ or $>$). These aren't just lines; they are whole regions of answers.</p></div>"
+              ]
+            },
+            {
+              "type": "cta",
+              "title": "Start Phase 3",
+              "text": "Go to Visual Solutions",
+              "button_text": "Start Phase 3",
+              "link": "visual-systems",
+              "color": "slate"
+            }
+          ]
+        },
+        "visual-systems": {
+          "title": "Visual Systems",
+          "content": [
+            {
+              "type": "interactive_visual_systems",
+              "title": "Visual Systems",
+              "subtitle": "Adjust the sliders. The answer is the purple dot."
+            }
+          ]
+        },
+        "algebra-systems": {
+          "title": "Algebraic Methods",
+          "content": [
+            {
+                "type": "grid",
+                "columns": 2,
+                "content": [
+                    "<div class='bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden'><div class='bg-violet-50 p-4 border-b border-violet-100 flex items-center gap-3'><div class='bg-white p-2 rounded-full shadow-sm text-violet-600'><i class='fas fa-user-secret'></i></div><h3 class='font-bold text-violet-900'>Substitution (\"The Spy\")</h3></div><div class='p-6'><p class='text-sm text-slate-600 mb-4'>Best when one variable is already alone (isolated).</p><div class='font-mono text-sm bg-slate-50 p-3 rounded mb-4 border border-slate-100'>Eq A: y = <span class='text-red-500 font-bold'>2x + 1</span><br>Eq B: 3x + <span class='text-violet-600 font-bold'>y</span> = 11</div><details class='group bg-slate-50 rounded-lg p-3 cursor-pointer mb-2'><summary class='font-bold text-slate-700 text-sm flex justify-between'>Step 1: The Switch <i class='fas fa-chevron-down text-slate-400 group-open:rotate-180 transition-transform'></i></summary><div class='mt-2 text-sm text-slate-600'>Take <strong>2x+1</strong> and plug it into <strong>y</strong> in the second equation.<br><span class='font-mono text-slate-800'>3x + (2x + 1) = 11</span></div></details><details class='group bg-slate-50 rounded-lg p-3 cursor-pointer mb-2'><summary class='font-bold text-slate-700 text-sm flex justify-between'>Step 2: Solve X <i class='fas fa-chevron-down text-slate-400 group-open:rotate-180 transition-transform'></i></summary><div class='mt-2 text-sm text-slate-600 font-mono'>5x + 1 = 11<br>5x = 10<br><strong>x = 2</strong></div></details></div></div>",
+                    "<div class='bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden'><div class='bg-pink-50 p-4 border-b border-pink-100 flex items-center gap-3'><div class='bg-white p-2 rounded-full shadow-sm text-pink-600'><i class='fas fa-eraser'></i></div><h3 class='font-bold text-pink-900'>Elimination (\"The Combo\")</h3></div><div class='p-6'><p class='text-sm text-slate-600 mb-4'>Best when variables are stacked up nicely (Standard Form).</p><div class='font-mono text-sm bg-slate-50 p-3 rounded mb-4 border border-slate-100'>&nbsp;&nbsp;2x + 3y = 20<br>-2x + y&nbsp;&nbsp;= 4<br>----------------</div><details class='group bg-slate-50 rounded-lg p-3 cursor-pointer mb-2'><summary class='font-bold text-slate-700 text-sm flex justify-between'>Step 1: Add Down <i class='fas fa-chevron-down text-slate-400 group-open:rotate-180 transition-transform'></i></summary><div class='mt-2 text-sm text-slate-600'>The <strong>2x</strong> and <strong>-2x</strong> cancel out (eliminate) to zero!<br><span class='font-mono text-slate-800'>0 + 4y = 24</span></div></details><details class='group bg-slate-50 rounded-lg p-3 cursor-pointer mb-2'><summary class='font-bold text-slate-700 text-sm flex justify-between'>Step 2: Solve Y <i class='fas fa-chevron-down text-slate-400 group-open:rotate-180 transition-transform'></i></summary><div class='mt-2 text-sm text-slate-600 font-mono'>4y = 24<br><strong>y = 6</strong></div></details></div></div>"
+                ]
+            },
+            {
+                "type": "mini_quiz_single",
+                "question": "Which method is best for: <span class='font-mono'>y = 3x - 1</span> and <span class='font-mono'>y = -2x + 4</span>?",
+                "options": [
+                    { "text": "A. Equaling / Substitution", "correct": true, "feedback": "Correct! Since both equal y, you can just set them equal to each other (Substitution)." },
+                    { "text": "B. Elimination", "correct": false, "feedback": "Not quite. Elimination is best when variables are on the same side, like 2x + 3y = 10." }
+                ]
+            }
+          ]
+        },
+        "strategy": {
+          "title": "Choose Your Weapon",
+          "content": [
+            {
+              "type": "strategy_list",
+              "items": [
+                { "eq": "y = 3x + 2<br>y = -5x - 4", "title": "Graphing or Equaling", "color": "sky", "desc": "Since both equal \"y\", set them equal to each other: $3x+2 = -5x-4$." },
+                { "eq": "y = 2x - 5<br>4x + 3y = 20", "title": "Substitution", "color": "violet", "desc": "First equation tells you exactly what \"y\" is. Plug it into the second." },
+                { "eq": "5x - 2y = 10<br>3x + 2y = 6", "title": "Elimination", "color": "pink", "desc": "Look at -2y and +2y. If you add the lines, \"y\" dies immediately. Easy win." }
+              ]
+            }
+          ]
+        },
+        "inequalities": {
+          "title": "Linear Inequalities",
+          "content": [
+            {
+              "type": "interactive_inequalities",
+              "title": "Linear Inequalities",
+              "subtitle": "It's not just a line, it's a <strong>region</strong> (a shaded yard)."
+            }
+          ]
+        },
+        "resources": {
+          "title": "Video Guides",
+          "content": [
+            {
+              "type": "links",
+              "links": [
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:systems-of-equations/x2f8bb11595b61c86:systems-of-equations-with-graphing/v/solving-linear-systems-by-graphing", "text": "Systems by Graphing", "desc": "Learn how to graph two lines to find their intersection point visually.", "icon": "fas fa-chart-line"},
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:systems-of-equations/x2f8bb11595b61c86:solving-systems-of-equations-with-substitution/v/solving-linear-systems-by-substitution", "text": "Substitution Method", "desc": "How to plug one equation into another to solve for specific variables.", "icon": "fas fa-user-secret"},
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:systems-of-equations/x2f8bb11595b61c86:solving-systems-of-equations-with-elimination/v/solving-systems-of-equations-by-elimination", "text": "Elimination Method", "desc": "Adding or subtracting equations to cancel out a variable entirely.", "icon": "fas fa-eraser"},
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:inequalities-systems-graphs/x2f8bb11595b61c86:graphing-two-variable-inequalities/v/graphing-linear-inequalities-in-two-variables-example-2", "text": "Graphing Inequalities", "desc": "Understanding boundaries, dashed/solid lines, and shading regions.", "icon": "fas fa-fill-drip"}
+              ]
+            }
+          ]
+        },
+        "quiz": {
+          "title": "Final Mastery Check",
+          "content": [
+            { "type": "mastery_quiz" }
+          ]
+        }
+      },
+      "quiz_data": [
+                {
+                    "q": "If two lines have different slopes, how many times do they intersect?",
+                    "opts": ["Zero times (Parallel)", "Exactly once", "Infinitely many times", "It depends on the y-intercept"],
+                    "correct": 1,
+                    "expl": "Different slopes mean they are angling towards each other and must cross eventually."
+                },
+                {
+                    "q": "Which method is best for: <br> $y = 2x + 1$ <br> $3x + y = 10$",
+                    "opts": ["Elimination", "Substitution", "Guessing", "Graphing"],
+                    "correct": 1,
+                    "expl": "Since the first equation has 'y' isolated, Substitution is the easiest path."
+                },
+                {
+                    "q": "In the inequality $y < 2x - 1$, should the line be solid or dashed?",
+                    "opts": ["Solid", "Dashed", "Wavy", "Invisible"],
+                    "correct": 1,
+                    "expl": "Because it is strictly less than (<) and NOT equal to, the boundary is Dashed."
+                },
+                {
+                    "q": "If you end up with $5 = 5$ when solving algebraically, what does it mean?",
+                    "opts": ["No Solution", "One Solution", "Infinite Solutions", "Math Error"],
+                    "correct": 2,
+                    "expl": "A true statement (5=5) means the lines are actually identical (coincident lines)."
+                }
+      ]
+    },
+    "systems_quest": {
+      "id": "systems_quest",
+      "title": "Systems Quest: The Graphing Strategy",
+      "subtitle": "Solution Strategy Guide",
+      "theme": "blue",
+      "navigation": [
+        {"id": "intro", "label": "Mission Briefing", "icon": "fa-home"},
+        {"id": "step1", "label": "Eq 1: Purple Line", "sub": "y = 3/5x + 4", "icon": "fa-1"},
+        {"id": "step2", "label": "Eq 2: Green Line", "sub": "y = -2/5x - 1", "icon": "fa-2"},
+        {"id": "step3", "label": "The Solution", "sub": "Final Answer", "icon": "fa-crosshairs"},
+        {"id": "resources", "label": "Video Guides", "icon": "fa-video"},
+        {"id": "quiz", "label": "Practice Quiz", "icon": "fa-star"}
+      ],
+      "pages": {
+        "intro": {
+          "title": "Mission Briefing",
+          "content": [
+            {
+              "type": "hero",
+              "badge": "The Assignment",
+              "title": "Solving by Graphing",
+              "text": "You have two equations. Each one draws a line. Your goal is to find the exact point where they <strong>crash into each other</strong>."
+            },
+            {
+              "type": "grid",
+              "columns": 2,
+              "content": [
+                "<div class='bg-white p-6 rounded-2xl shadow-sm border-l-4 border-purple-500'><h3 class='text-xs font-bold text-purple-500 uppercase tracking-wide mb-2'>Opponent 1</h3><div class='text-3xl font-mono font-bold text-slate-800'>y = <span class='fraction'><span class='numerator'>3</span><span class='denominator'>5</span></span>x + 4</div><div class='mt-4 text-sm text-slate-500'><span class='bg-purple-100 px-2 py-1 rounded text-purple-700 font-bold mr-2'>Start at +4</span><span class='bg-purple-100 px-2 py-1 rounded text-purple-700 font-bold'>Rise 3, Run 5</span></div></div>",
+                "<div class='bg-white p-6 rounded-2xl shadow-sm border-l-4 border-green-500'><h3 class='text-xs font-bold text-green-500 uppercase tracking-wide mb-2'>Opponent 2</h3><div class='text-3xl font-mono font-bold text-slate-800'>y = -<span class='fraction'><span class='numerator'>2</span><span class='denominator'>5</span></span>x - 1</div><div class='mt-4 text-sm text-slate-500'><span class='bg-green-100 px-2 py-1 rounded text-green-700 font-bold mr-2'>Start at -1</span><span class='bg-green-100 px-2 py-1 rounded text-green-700 font-bold'>Down 2, Run 5</span></div></div>"
+              ]
+            },
+            {
+              "type": "cta",
+              "title": "Ready to Solve?",
+              "text": "Let's break it down line-by-line to find the intersection.",
+              "button_text": "Start Step 1",
+              "link": "step1",
+              "color": "blue"
+            }
+          ]
+        },
+        "step1": {
+          "title": "Step 1: Graphing Line #1",
+          "content": [
+            {
+              "type": "html",
+              "html": "<div class='flex flex-col lg:flex-row gap-8'><div class='flex-1 space-y-6'><div class='bg-white p-6 rounded-2xl shadow-sm border border-purple-100'><div class='font-mono text-2xl font-bold text-center mb-4 text-slate-800 border-b border-slate-100 pb-4'>y = <span class='text-purple-600'>3/5</span>x <span class='text-pink-600'>+ 4</span></div><ul class='space-y-4'><li class='flex gap-4'><div class='w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold flex-shrink-0'>1</div><div><span class='block font-bold text-slate-700'>The \"Begin\" Number (b)</span><span class='text-slate-500 text-sm'>Start on the Y-axis at <strong>+4</strong>.</span></div></li><li class='flex gap-4'><div class='w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold flex-shrink-0'>2</div><div><span class='block font-bold text-slate-700'>The \"Move\" Number (Slope)</span><span class='text-slate-500 text-sm'>Slope is <strong>3/5</strong>.</span><div class='bg-slate-100 p-2 rounded mt-2 text-xs font-mono'>UP 3 <br> RIGHT 5</div></div></li><li class='flex gap-4'><div class='w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold flex-shrink-0'><i class='fas fa-bolt'></i></div><div><span class='block font-bold text-amber-700'>Pro Tip: Reverse It!</span><span class='text-slate-500 text-sm'>To go backwards (left), do the opposite:</span><div class='bg-amber-50 border border-amber-200 p-2 rounded mt-2 text-xs font-mono text-amber-800'>DOWN 3 <br> LEFT 5</div><span class='text-xs text-slate-400 mt-1 block'>(This is how we find the answer later!)</span></div></li></ul></div></div><div class='flex-1 bg-white p-4 rounded-2xl shadow-lg border border-slate-200'><div class='graph-grid w-full aspect-square relative rounded border border-slate-300'><div class='axis-x'></div><div class='axis-y'></div><svg width='100%' height='100%' viewBox='-10 -10 20 20' style='position: absolute; top:0; left:0; transform: scaleY(-1);'><line x1='-10' y1='0' x2='10' y2='0' stroke='#1e293b' stroke-width='0.1' /><line x1='0' y1='-10' x2='0' y2='10' stroke='#1e293b' stroke-width='0.1' /><line x1='-10' y1='-2' x2='10' y2='10' stroke='#9333ea' stroke-width='0.3' stroke-linecap='round' /><circle cx='0' cy='4' r='0.4' fill='#db2777' /> <circle cx='5' cy='7' r='0.4' fill='#9333ea' /> <circle cx='-5' cy='1' r='0.4' fill='#d97706' /> </svg><div class='absolute top-[28%] left-[52%] bg-pink-600 text-white text-[10px] px-1 rounded font-bold'>Start (0,4)</div><div class='absolute top-[42%] left-[23%] bg-amber-500 text-white text-[10px] px-1 rounded font-bold'>(-5, 1)</div></div><p class='text-center text-xs text-slate-400 mt-2'>Purple Line graphed. Note the orange dot on the left.</p></div></div>"
+            }
+          ]
+        },
+        "step2": {
+          "title": "Step 2: Graphing Line #2",
+          "content": [
+            {
+              "type": "html",
+              "html": "<div class='flex flex-col lg:flex-row gap-8'><div class='flex-1 space-y-6'><div class='bg-white p-6 rounded-2xl shadow-sm border border-green-100'><div class='font-mono text-2xl font-bold text-center mb-4 text-slate-800 border-b border-slate-100 pb-4'>y = <span class='text-green-600'>-2/5</span>x <span class='text-pink-600'>- 1</span></div><ul class='space-y-4'><li class='flex gap-4'><div class='w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center font-bold flex-shrink-0'>1</div><div><span class='block font-bold text-slate-700'>The \"Begin\" Number (b)</span><span class='text-slate-500 text-sm'>Start on the Y-axis at <strong>-1</strong>.</span></div></li><li class='flex gap-4'><div class='w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold flex-shrink-0'>2</div><div><span class='block font-bold text-slate-700'>The \"Move\" Number (Slope)</span><span class='text-slate-500 text-sm'>Slope is <strong>-2/5</strong> (Negative!)</span><div class='bg-slate-100 p-2 rounded mt-2 text-xs font-mono'>DOWN 2 <br> RIGHT 5</div></div></li><li class='flex gap-4'><div class='w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold flex-shrink-0'><i class='fas fa-bolt'></i></div><div><span class='block font-bold text-amber-700'>Reverse It Again!</span><span class='text-slate-500 text-sm'>To go left, do the opposite:</span><div class='bg-amber-50 border border-amber-200 p-2 rounded mt-2 text-xs font-mono text-amber-800'>UP 2 <br> LEFT 5</div></div></li></ul></div></div><div class='flex-1 bg-white p-4 rounded-2xl shadow-lg border border-slate-200'><div class='graph-grid w-full aspect-square relative rounded border border-slate-300'><div class='axis-x'></div><div class='axis-y'></div><svg width='100%' height='100%' viewBox='-10 -10 20 20' style='position: absolute; top:0; left:0; transform: scaleY(-1);'><line x1='-10' y1='0' x2='10' y2='0' stroke='#1e293b' stroke-width='0.1' /><line x1='0' y1='-10' x2='0' y2='10' stroke='#1e293b' stroke-width='0.1' /><line x1='-10' y1='-2' x2='10' y2='10' stroke='#e9d5ff' stroke-width='0.2' /><line x1='-10' y1='3' x2='10' y2='-5' stroke='#16a34a' stroke-width='0.3' stroke-linecap='round' /><circle cx='0' cy='-1' r='0.4' fill='#db2777' /> <circle cx='5' cy='-3' r='0.4' fill='#16a34a' /> <circle cx='-5' cy='1' r='0.4' fill='#d97706' /> </svg><div class='absolute top-[53%] left-[52%] bg-pink-600 text-white text-[10px] px-1 rounded font-bold'>Start (0,-1)</div><div class='absolute top-[42%] left-[23%] bg-amber-500 text-white text-[10px] px-1 rounded font-bold border-2 border-white'>Wait... (-5,1)</div></div><p class='text-center text-xs text-slate-400 mt-2'>Green line added. Do you see where they cross?</p></div></div>"
+            }
+          ]
+        },
+        "step3": {
+          "title": "The Solution",
+          "content": [
+            {
+              "type": "html",
+              "html": "<div class='bg-white p-8 rounded-3xl shadow-2xl border-2 border-red-500 relative overflow-hidden'><div class='absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl'>MISSION COMPLETE</div><div class='flex flex-col md:flex-row gap-8 items-center'><div class='flex-1'><h3 class='font-bold text-xl text-slate-800 mb-4'>Where do they cross?</h3><p class='text-slate-600 mb-6'>When we reversed both lines (going Left 5), they both landed on the exact same spot.</p><div class='bg-slate-900 text-white p-6 rounded-2xl text-center shadow-inner'><p class='text-slate-400 text-xs font-bold uppercase tracking-widest mb-2'>The Coordinate</p><div class='text-5xl font-mono font-bold text-green-400'>(-5, 1)</div><div class='mt-4 flex justify-center gap-4 text-sm font-mono text-slate-400'><span>x = -5</span><span>y = 1</span></div></div><div class='mt-6 bg-yellow-50 p-4 rounded-xl border border-yellow-200'><p class='text-sm text-yellow-800 font-bold'><i class='fas fa-keyboard mr-2'></i>For your homework:</p><p class='text-sm text-yellow-700 mt-1'>First graph the lines by clicking the points we found, then type <strong>(-5, 1)</strong> in the solution box.</p></div></div><div class='w-full md:w-80 aspect-square bg-slate-50 rounded-xl border-2 border-slate-200 relative overflow-hidden'><div class='absolute inset-0 graph-grid'><div class='axis-x'></div><div class='axis-y'></div><svg width='100%' height='100%' viewBox='-10 -10 20 20' style='position: absolute; top:0; left:0; transform: scaleY(-1);'><line x1='-10' y1='0' x2='10' y2='0' stroke='#1e293b' stroke-width='0.1' /><line x1='0' y1='-10' x2='0' y2='10' stroke='#1e293b' stroke-width='0.1' /><line x1='-10' y1='-2' x2='10' y2='10' stroke='#9333ea' stroke-width='0.3' /><line x1='-10' y1='3' x2='10' y2='-5' stroke='#16a34a' stroke-width='0.3' /><circle cx='-5' cy='1' r='0.8' fill='#ef4444' stroke='white' stroke-width='0.2' /><circle cx='-5' cy='1' r='1.5' fill='none' stroke='#ef4444' stroke-width='0.1' opacity='0.5'><animate attributeName='r' from='0.8' to='2' dur='1.5s' repeatCount='indefinite' /><animate attributeName='opacity' from='1' to='0' dur='1.5s' repeatCount='indefinite' /></circle></svg></div></div></div></div>"
+            }
+          ]
+        },
+        "resources": {
+          "title": "Video Guides",
+          "content": [
+            {
+              "type": "links",
+              "links": [
+                {"url": "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:systems-of-equations/x2f8bb11595b61c86:solving-systems-by-graphing/v/solving-linear-systems-by-graphing", "text": "Khan Academy: Solving Systems", "desc": "A clear walkthrough of finding intersections by graphing.", "icon": "fab fa-youtube"},
+                {"url": "https://www.youtube.com/results?search_query=solving+systems+by+graphing+slope+intercept", "text": "More Examples", "desc": "Search results for similar problems on YouTube.", "icon": "fas fa-search"}
+              ]
+            }
+          ]
+        },
+        "quiz": {
+          "title": "Practice Quiz",
+          "content": [
+            { "type": "mastery_quiz" }
+          ]
+        }
+      },
+      "quiz_data": [
+                {
+                    "question": "What does the solution to a system of equations look like on a graph?",
+                    "options": [
+                        { "text": "Two parallel lines that never touch", "correct": false, "feedback": "That would be 'No Solution'." },
+                        { "text": "The point where the two lines intersect (cross)", "correct": true, "feedback": "Correct! The crossing point is the answer." },
+                        { "text": "The y-intercept of the first line", "correct": false, "feedback": "That's just where the line starts." }
+                    ]
+                },
+                {
+                    "question": "In the equation y = -2/5x - 1, how do you move to find the next point?",
+                    "options": [
+                        { "text": "Up 2, Right 5", "correct": false, "feedback": "Negative slope means go DOWN." },
+                        { "text": "Down 2, Right 5", "correct": true, "feedback": "Yes. Negative top number = Down. Bottom number = Right." },
+                        { "text": "Down 2, Left 5", "correct": false, "feedback": "Going Down AND Left makes a positive line (double negative)." }
+                    ]
+                },
+                {
+                    "question": "If a point is the solution, what happens if you plug it into BOTH equations?",
+                    "options": [
+                        { "text": "It works for both equations (makes them true)", "correct": true, "feedback": "Exactly. It is the only point that works for everyone." },
+                        { "text": "It only works for the first equation", "correct": false, "feedback": "Then it's just a point on one line, not the system solution." },
+                        { "text": "You get zero", "correct": false, "feedback": "Not necessarily." }
+                    ]
+                },
+                {
+                    "question": "For the problem we just solved, what was the coordinate of the solution?",
+                    "options": [
+                        { "text": "(5, 1)", "correct": false, "feedback": "Close, but check the x-axis sign." },
+                        { "text": "(-5, 1)", "correct": true, "feedback": "Perfect. Left 5, Up 1." },
+                        { "text": "(0, 4)", "correct": false, "feedback": "That was the intercept of the first line." }
+                    ]
+                }
+      ]
+    }
+  }
+  
+  

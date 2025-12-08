@@ -1,5 +1,5 @@
 # --- Stage 1: Build dependencies ---  
-FROM python:3.10-slim-bookworm as builder  
+FROM python:3.11-slim-bookworm as builder  
 WORKDIR /app  
   
 # (Optional) Install build deps  
@@ -11,7 +11,7 @@ RUN python -m venv /opt/venv && \
     pip install -r requirements.txt  
   
 # --- Stage 2: Final image ---  
-FROM python:3.10-slim-bookworm  
+FROM python:3.11-slim-bookworm  
 WORKDIR /app  
   
 # Copy venv from builder  

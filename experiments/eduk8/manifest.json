@@ -1,0 +1,8 @@
+{
+  "slug": "eduk8",
+  "name": "EduK8 Hello World",
+  "status": "active",
+  "auth_required": false,
+  "data_scope": ["self"],
+  "managed_indexes": {}
+}

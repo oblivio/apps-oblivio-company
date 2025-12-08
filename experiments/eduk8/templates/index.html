@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Finals Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen text-slate-100 p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+                Math Finals 2025
+            </h1>
+            <p class="text-slate-400 text-xl">Select a module to begin your review.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Generator Card -->
+            <div onclick="openGeneratorModal()" class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 border border-indigo-500 hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer group relative overflow-hidden flex flex-col justify-center items-center text-center">
+                <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                <i class="fas fa-wand-magic-sparkles text-5xl text-white mb-4 animate-pulse"></i>
+                <h2 class="text-2xl font-bold text-white mb-2">Create Module</h2>
+                <p class="text-indigo-200 text-sm">Generate a new learning module with AI.</p>
+            </div>
+
+            {% for id, course in courses.items() %}
+            <a href="{{ id }}" class="bg-slate-800 rounded-2xl p-6 border border-slate-700 hover:border-indigo-500 hover:bg-slate-750 transition-all group relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <i class="fas fa-cube text-6xl"></i>
+                </div>
+                
+                <div class="relative z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-2 block">Module</span>
+                    <h2 class="text-2xl font-bold text-white mb-2 group-hover:text-indigo-300 transition-colors">{{ course.title }}</h2>
+                    <p class="text-slate-400 text-sm mb-4">{{ course.subtitle }}</p>
+                    
+                    <div class="flex items-center text-sm font-bold text-indigo-400">
+                        Start Learning <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Generator Modal -->
+    <div id="generator-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg p-8 shadow-2xl relative transform scale-95 transition-transform duration-300">
+            <button onclick="closeGeneratorModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            
+            <h3 class="text-2xl font-bold text-white mb-6 flex items-center">
+                <i class="fas fa-robot text-indigo-400 mr-3"></i> AI Module Generator
+            </h3>
+            
+            <div id="gen-step-1">
+                <label class="block text-slate-300 mb-2 font-bold">What topic should we create?</label>
+                <input type="text" id="topic-input" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-4 text-white focus:border-indigo-500 focus:outline-none mb-6" placeholder="e.g. Introduction to Quantum Physics">
+                
+                <button onclick="startGeneration()" id="gen-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-colors flex items-center justify-center">
+                    <span>Generate Module</span>
+                    <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+            
+            <div id="gen-step-loading" class="hidden text-center py-8">
+                <div class="inline-block w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p class="text-slate-300 animate-pulse">Designing curriculum...</p>
+            </div>
+            
+            <div id="gen-step-preview" class="hidden">
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 mb-6 text-left">
+                    <h4 class="text-white font-bold mb-1" id="preview-title"></h4>
+                    <p class="text-slate-400 text-sm" id="preview-subtitle"></p>
+                    <div class="mt-2 text-xs text-indigo-400 uppercase font-bold tracking-wider">Preview Generated</div>
+                </div>
+                
+                <div class="flex gap-4">
+                    <button onclick="discardModule()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors">Discard</button>
+                    <button onclick="previewModule()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors">Preview Content</button>
+                    <button onclick="saveModule()" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors">Save Module</button>
+                </div>
+            </div>
+
+            <div id="gen-error" class="hidden mt-6 p-4 bg-red-900/50 border border-red-800 rounded-lg text-red-200 text-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        // Modal Logic
+        const modal = document.getElementById('generator-modal');
+        const modalContent = modal.querySelector('div');
+        let currentGeneratedModule = null;
+
+        function openGeneratorModal() {
+            modal.classList.remove('hidden');
+            // Small delay to allow display:block to apply before opacity transition
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+            document.getElementById('topic-input').focus();
+        }
+
+        function closeGeneratorModal() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                resetGenerator();
+            }, 300);
+        }
+
+        function resetGenerator() {
+            document.getElementById('gen-step-1').classList.remove('hidden');
+            document.getElementById('gen-step-loading').classList.add('hidden');
+            document.getElementById('gen-step-preview').classList.add('hidden');
+            document.getElementById('gen-error').classList.add('hidden');
+            document.getElementById('topic-input').value = '';
+            currentGeneratedModule = null;
+        }
+
+        async function startGeneration() {
+            const topic = document.getElementById('topic-input').value;
+            if (!topic) return;
+
+            document.getElementById('gen-step-1').classList.add('hidden');
+            document.getElementById('gen-step-loading').classList.remove('hidden');
+            document.getElementById('gen-error').classList.add('hidden');
+
+            try {
+                const response = await fetch('/experiments/eduk8/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || result.detail || 'Generation failed');
+                }
+
+                currentGeneratedModule = result;
+                showPreview(result);
+            } catch (err) {
+                document.getElementById('gen-step-loading').classList.add('hidden');
+                document.getElementById('gen-step-1').classList.remove('hidden');
+                const errBox = document.getElementById('gen-error');
+                errBox.innerText = err.message;
+                errBox.classList.remove('hidden');
+            }
+        }
+
+        function showPreview(module) {
+            document.getElementById('gen-step-loading').classList.add('hidden');
+            document.getElementById('gen-step-preview').classList.remove('hidden');
+            
+            document.getElementById('preview-title').innerText = module.title;
+            document.getElementById('preview-subtitle').innerText = module.subtitle;
+        }
+
+        function previewModule() {
+            if (!currentGeneratedModule) return;
+            
+            // Store module in localStorage for the preview page
+            localStorage.setItem('eduk8_preview_module', JSON.stringify(currentGeneratedModule));
+            
+            // Open preview in new window
+            const win = window.open('/experiments/eduk8/preview', '_blank');
+            if (win) {
+                win.focus();
+            } else {
+                alert('Please allow popups to view the preview.');
+            }
+        }
+
+        function discardModule() {
+            resetGenerator();
+        }
+
+        async function saveModule() {
+            if (!currentGeneratedModule) return;
+            
+            const btn = document.querySelector('#gen-step-preview button:last-child');
+            const originalText = btn.innerText;
+            btn.innerText = 'Saving...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/experiments/eduk8/api/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ module: currentGeneratedModule })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || result.detail || 'Save failed');
+                }
+
+                // Success! Reload page to show new module
+                window.location.reload();
+            } catch (err) {
+                const errBox = document.getElementById('gen-error');
+                errBox.innerText = err.message;
+                errBox.classList.remove('hidden');
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+
