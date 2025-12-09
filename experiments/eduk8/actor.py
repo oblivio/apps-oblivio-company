@@ -100,10 +100,54 @@ class ExperimentActor:
             if "error" in structure: return structure
             
             # 2. CONTENT AGENT: Flesh out the content
-            # Get a sample of a good module for few-shot prompting
+            # Get examples of interactive components in context
+            interactive_examples = {}
+            if "algebra_foundation" in self.courses:
+                # Example: interactive_balance_lab for "Variables on Both Sides"
+                interactive_examples["balance_lab"] = {
+                    "topic": "Variables on Both Sides",
+                    "page": self.courses["algebra_foundation"]["pages"]["phase1"]
+                }
+                # Example: interactive_literal_eq for "Literal Equations"
+                interactive_examples["literal_eq"] = {
+                    "topic": "Literal Equations",
+                    "page": self.courses["algebra_foundation"]["pages"]["phase2"]
+                }
+            
+            if "mastering_lines" in self.courses:
+                # Example: interactive_graphing for "Graphing Linear Functions"
+                interactive_examples["graphing"] = {
+                    "topic": "Graphing Linear Functions",
+                    "page": self.courses["mastering_lines"]["pages"]["graphing"]
+                }
+                # Example: interactive_slope_machine for "Parallel & Perpendicular"
+                interactive_examples["slope_machine"] = {
+                    "topic": "Parallel & Perpendicular Lines",
+                    "page": self.courses["mastering_lines"]["pages"]["parallel"]
+                }
+            
+            if "systems_inequalities" in self.courses:
+                # Example: interactive_visual_systems for "Systems of Equations"
+                interactive_examples["visual_systems"] = {
+                    "topic": "Systems of Equations",
+                    "page": self.courses["systems_inequalities"]["pages"]["visual-systems"]
+                }
+                # Example: interactive_inequalities for "Linear Inequalities"
+                interactive_examples["inequalities"] = {
+                    "topic": "Linear Inequalities",
+                    "page": self.courses["systems_inequalities"]["pages"]["inequalities"]
+                }
+            
+            # Build examples string
+            examples_str = "\n\nEXAMPLES FROM EXISTING MODULES (Study these patterns):\n"
+            for key, ex in interactive_examples.items():
+                examples_str += f"\n--- Example: {ex['topic']} uses {key} ---\n"
+                examples_str += json.dumps(ex["page"], indent=2)
+                examples_str += "\n"
+
+            # Get sample module for general style reference
             sample_module_str = ""
             if "algebra_foundation" in self.courses:
-                # Use a truncated version of algebra_foundation as a "gold standard" example
                 sample_course = self.courses["algebra_foundation"]
                 sample_module_str = json.dumps({
                     "pages": {
@@ -111,7 +155,7 @@ class ExperimentActor:
                     },
                     "quiz_data": sample_course["quiz_data"][:2]
                 })
-
+            
             content_prompt = f"""
             You are an expert educational content creator. 
             Fill in the content for the module structure defined below.
@@ -121,6 +165,7 @@ class ExperimentActor:
             
             REFERENCE QUALITY (Do not copy, but match this depth and style):
             {sample_module_str}
+            {examples_str}
             
             REQUIREMENTS:
             1. "pages": Create a dictionary where keys match the navigation IDs.
@@ -134,16 +179,51 @@ class ExperimentActor:
                - "mastery_quiz": {{ "type": "mastery_quiz" }} (ONLY for the quiz page)
             
             CRITICAL: For topics involving graphs, equations, visualizations, or mathematical concepts, 
-            you MUST include interactive visual components. Use these types:
-               - "interactive_graphing": {{ "title", "subtitle" }} - For graphing linear functions (y=mx+b)
-               - "interactive_visual_systems": {{ "title", "subtitle" }} - For systems of equations with visual graphs
-               - "interactive_inequalities": {{ "title", "subtitle" }} - For graphing inequalities and shading regions
-               - "interactive_balance_lab": {{ "title", "subtitle" }} - For solving equations with variables on both sides
-               - "interactive_literal_eq": {{ "title", "subtitle" }} - For rearranging literal equations/formulas
-               - "interactive_slope_machine": {{ "title", "subtitle" }} - For exploring slope relationships (parallel/perpendicular)
+            you MUST include interactive visual components that DIRECTLY RELATE to the topic being taught.
             
-            If the topic involves any mathematical visualization, graphing, or interactive exploration, 
-            you MUST include at least one interactive component. Do NOT skip visuals for math topics!
+            MATCHING GUIDE - Choose the interactive component that matches your topic:
+               Study the examples above to see how each component is used in context!
+               
+               - "interactive_graphing": {{ "title", "subtitle" }} 
+                 → ONLY use for: Graphing linear functions, plotting points, y=mx+b, coordinate planes
+                 → See example above: "Graphing Linear Functions" topic
+                 → Example structure: {{"type": "interactive_graphing", "title": "Interactive Graph", "subtitle": "The \\"Begin and Move\\" Method for y = mx + b"}}
+                 
+               - "interactive_visual_systems": {{ "title", "subtitle" }} 
+                 → ONLY use for: Systems of equations, finding intersection points, two equations with two variables
+                 → See example above: "Systems of Equations" topic
+                 → Example structure: {{"type": "interactive_visual_systems", "title": "Visual Systems", "subtitle": "Adjust the sliders. The answer is the purple dot."}}
+                 
+               - "interactive_inequalities": {{ "title", "subtitle" }} 
+                 → ONLY use for: Graphing inequalities, shading regions, < > ≤ ≥ symbols
+                 → See example above: "Linear Inequalities" topic
+                 → Example structure: {{"type": "interactive_inequalities", "title": "Linear Inequalities", "subtitle": "It's not just a line, it's a <strong>region</strong> (a shaded yard)."}}
+                 
+               - "interactive_balance_lab": {{ "title", "subtitle" }} 
+                 → ONLY use for: Solving equations with variables on both sides, balancing equations
+                 → See example above: "Variables on Both Sides" topic
+                 → Example structure: {{"type": "interactive_balance_lab", "title": "Variables on Both Sides", "subtitle": "The Conceptual Framework: The Balance Scale Analogy"}}
+                 
+               - "interactive_literal_eq": {{ "title", "subtitle" }} 
+                 → ONLY use for: Rearranging formulas, solving for a specific variable, literal equations
+                 → See example above: "Literal Equations" topic
+                 → Example structure: {{"type": "interactive_literal_eq", "title": "Literal Equations", "subtitle": "Goal: Isolate $y$ for graphing ($y = mx + b$)."}}
+                 
+               - "interactive_slope_machine": {{ "title", "subtitle" }} 
+                 → ONLY use for: Slope relationships, parallel lines, perpendicular lines, slope calculations
+                 → See example above: "Parallel & Perpendicular Lines" topic
+                 → Example structure: {{"type": "interactive_slope_machine", "title": "The Slope Machine", "subtitle": "How slopes relate to each other."}}
+            
+            RULES:
+            1. ONLY include an interactive component if it DIRECTLY teaches the topic. Do NOT add random graphs!
+            2. If the topic is about graphing → use interactive_graphing or interactive_visual_systems
+            3. If the topic is about solving equations → use interactive_balance_lab or interactive_literal_eq
+            4. If the topic is about inequalities → use interactive_inequalities
+            5. If the topic is about slopes/parallel/perpendicular → use interactive_slope_machine
+            6. If the topic does NOT involve graphs/equations/visualization → DO NOT add interactive components
+            
+            The interactive component MUST be relevant to the actual topic "{topic}". 
+            If you cannot find a relevant match, do NOT force an interactive component!
             
             Output the FULL JSON object (merging the structure with the new "pages" and "quiz_data").
             Output valid JSON only.
@@ -153,12 +233,77 @@ class ExperimentActor:
             draft_module = await self._call_llm(content_prompt)
             if "error" in draft_module: return draft_module
 
-            # 3. REVIEW AGENT: Critique and Polish
-            review_prompt = f"""
-            You are a strict educational editor. Review the JSON module below.
+            # 3. ENHANCEMENT AGENT: Add More & Make It Better
+            enhancement_prompt = f"""
+            You are an educational content enhancement agent. Your job is to analyze the draft module and 
+            make it SIGNIFICANTLY BETTER by adding missing elements and improving what exists.
             
-            Module:
-            {json.dumps(draft_module)}
+            Topic: {topic}
+            Current Draft Module:
+            {json.dumps(draft_module, indent=2)}
+            
+            REFERENCE EXAMPLES (for quality comparison):
+            {examples_str}
+            
+            YOUR MISSION - Think critically and act like an agent:
+            
+            1. ANALYZE what's missing:
+               - Are there enough interactive visual components for this topic? (Check examples above)
+               - Are pages too sparse? Do they need more content blocks?
+               - Are there gaps in the learning progression?
+               - Is the quiz_data comprehensive enough? (Should have 4-5 questions minimum)
+               - Are there opportunities for more engaging content types (hero, card_grid, html, etc.)?
+            
+            2. IDENTIFY what could be better:
+               - Are titles/subtitles engaging enough?
+               - Could pages benefit from additional explanatory content?
+               - Are there places where visual aids (html blocks with diagrams) would help?
+               - Could the content be more interactive or hands-on?
+               - Are there real-world examples or analogies missing?
+            
+            3. ENHANCE the module by:
+               - ADDING missing interactive components if the topic warrants them (use examples as reference)
+               - ADDING more content blocks to sparse pages (hero sections, explanatory html, examples)
+               - EXPANDING quiz_data if it's too short (aim for 4-5 quality questions)
+               - IMPROVING existing content with better explanations, examples, or visuals
+               - ADDING helpful content types like:
+                 * "box" blocks with tips/warnings
+                 * "card_grid" for key concepts
+                 * "html" blocks with visual diagrams or step-by-step guides
+                 * Additional interactive components where appropriate
+            
+            4. QUALITY CHECKS:
+               - Each page should have substantial content (not just 1-2 blocks)
+               - Math/STEM topics MUST have relevant interactive components (see examples)
+               - Content should be engaging, not dry
+               - Learning should progress logically from intro → concepts → practice → quiz
+            
+            IMPORTANT RULES:
+            - DO NOT remove good content, only ADD and IMPROVE
+            - Keep all existing good content, just enhance it
+            - If adding interactive components, ensure they match the topic (see examples)
+            - Make sure quiz_data has at least 4-5 questions
+            - Ensure pages have rich, varied content types
+            
+            Output the ENHANCED JSON module with all improvements. Output valid JSON only, no markdown.
+            """
+            
+            logger.info(f"[{self.write_scope}-Actor] Step 3: Enhancing and improving content...")
+            enhanced_module = await self._call_llm(enhancement_prompt)
+            if "error" in enhanced_module: 
+                logger.warning(f"[{self.write_scope}-Actor] Enhancement failed, using draft module")
+                enhanced_module = draft_module
+
+            # 4. REVIEW AGENT: Critique and Polish
+            review_prompt = f"""
+            You are a strict educational editor. Review the ENHANCED JSON module below.
+            
+            Topic: {topic}
+            Enhanced Module:
+            {json.dumps(enhanced_module)}
+            
+            REFERENCE EXAMPLES (for interactive component matching):
+            {examples_str}
             
             Your Job:
             1. Ensure all Tailwind classes are valid and look good (modern UI).
@@ -166,14 +311,23 @@ class ExperimentActor:
             3. Check that "quiz_data" exists and matches the quiz page.
             4. Improve the tone to be engaging, not dry.
             5. Ensure HTML content is safe and well-structured.
-            6. CRITICAL: If this is a math/STEM topic, verify that interactive visual components 
-               (interactive_graphing, interactive_visual_systems, interactive_inequalities, etc.) 
-               are included. If missing, ADD them to appropriate pages. Visuals are essential for learning!
+            6. CRITICAL: Check interactive component RELEVANCE using the examples above:
+               - Compare the topic "{topic}" to the example topics in the reference section
+               - If interactive components exist, verify they DIRECTLY relate to "{topic}" like the examples show
+               - interactive_graphing → only for graphing/plotting topics (see "Graphing Linear Functions" example)
+               - interactive_visual_systems → only for systems of equations (see "Systems of Equations" example)
+               - interactive_inequalities → only for inequality topics (see "Linear Inequalities" example)
+               - interactive_balance_lab → only for equations with variables on both sides (see "Variables on Both Sides" example)
+               - interactive_literal_eq → only for rearranging formulas (see "Literal Equations" example)
+               - interactive_slope_machine → only for slope/parallel/perpendicular topics (see "Parallel & Perpendicular" example)
+               - If an interactive component doesn't match the topic like in the examples, REMOVE it or REPLACE it with the correct one
+               - If the topic needs visuals (like the examples show) but none exist, ADD the appropriate one matching the example patterns
+               - If the topic doesn't need visuals, ensure no irrelevant interactive components are included
             
             Output the FINAL, polished JSON object. No markdown.
             """
             
-            logger.info(f"[{self.write_scope}-Actor] Step 3: Reviewing and polishing...")
+            logger.info(f"[{self.write_scope}-Actor] Step 4: Reviewing and polishing...")
             final_module = await self._call_llm(review_prompt)
             return final_module
 
