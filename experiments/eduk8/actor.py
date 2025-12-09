@@ -133,6 +133,18 @@ class ExperimentActor:
                - "card_grid": {{ "cards": [ {{ "title", "text", "icon", "color" }} ] }}
                - "mastery_quiz": {{ "type": "mastery_quiz" }} (ONLY for the quiz page)
             
+            CRITICAL: For topics involving graphs, equations, visualizations, or mathematical concepts, 
+            you MUST include interactive visual components. Use these types:
+               - "interactive_graphing": {{ "title", "subtitle" }} - For graphing linear functions (y=mx+b)
+               - "interactive_visual_systems": {{ "title", "subtitle" }} - For systems of equations with visual graphs
+               - "interactive_inequalities": {{ "title", "subtitle" }} - For graphing inequalities and shading regions
+               - "interactive_balance_lab": {{ "title", "subtitle" }} - For solving equations with variables on both sides
+               - "interactive_literal_eq": {{ "title", "subtitle" }} - For rearranging literal equations/formulas
+               - "interactive_slope_machine": {{ "title", "subtitle" }} - For exploring slope relationships (parallel/perpendicular)
+            
+            If the topic involves any mathematical visualization, graphing, or interactive exploration, 
+            you MUST include at least one interactive component. Do NOT skip visuals for math topics!
+            
             Output the FULL JSON object (merging the structure with the new "pages" and "quiz_data").
             Output valid JSON only.
             """
@@ -154,6 +166,9 @@ class ExperimentActor:
             3. Check that "quiz_data" exists and matches the quiz page.
             4. Improve the tone to be engaging, not dry.
             5. Ensure HTML content is safe and well-structured.
+            6. CRITICAL: If this is a math/STEM topic, verify that interactive visual components 
+               (interactive_graphing, interactive_visual_systems, interactive_inequalities, etc.) 
+               are included. If missing, ADD them to appropriate pages. Visuals are essential for learning!
             
             Output the FINAL, polished JSON object. No markdown.
             """
