@@ -56,16 +56,52 @@ g.nome is the "WordPress-like" model I've always wanted for the modern FastAPI a
     pip install -r requirements.txt
     ```
 
-4.  **Run the application:**
+4.  **Set up environment variables (optional):**
     ```bash
-    # Ensure MongoDB is running (e.g., via Docker or Atlas)
-    # Set env vars if needed: export MONGO_URI="mongodb://localhost:27017"
+    # MongoDB connection (if not using default)
+    export MONGO_URI="mongodb://localhost:27017"
     
-    # Start the server
-    uvicorn main:app --reload
+    # Security (required for production, optional for local dev)
+    export FLASK_SECRET_KEY="your-secret-key-here"
+    export ADMIN_EMAIL="admin@example.com"
+    export ADMIN_PASSWORD="password123"
+    
+    # Ray cluster (if using remote Ray)
+    export RAY_ADDRESS="ray://your-ray-cluster:10001"
+    ```
+
+5.  **Set up HTTPS with a self-signed certificate:**
+    
+    Many modern web features require HTTPS, even on `localhost` (secure cookies, OAuth callbacks, browser APIs). g.nome uses HTTPS for local development.
+    
+    **Step 1: Generate a self-signed certificate (one-time setup)**
+    ```bash
+    # Run this in the project root directory
+    openssl req -x509 -newkey rsa:4096 -nodes -keyout localhost.key -out localhost.crt -days 365 -subj "/CN=localhost"
     ```
     
-    Visit `http://localhost:8000/admin` to see the admin panel.
+    This creates two files:
+    - `localhost.key` - Private key (keep this secure, don't commit to git)
+    - `localhost.crt` - Certificate file
+    
+    > **Note:** These files are already in `.gitignore` and won't be committed to version control.
+    
+    **Step 2: Run the application with SSL**
+    ```bash
+    # Ensure MongoDB is running (e.g., via Docker or Atlas)
+    uvicorn main:app --reload --ssl-keyfile=localhost.key --ssl-certfile=localhost.crt
+    ```
+    
+    Your server will start on `https://localhost:8000`.
+    
+    **Step 3: Trust the certificate in your browser**
+    
+    Your browser will show a "Not Secure" warning (this is expected for self-signed certificates). To proceed:
+    - Click **"Advanced"** or **"Show Details"**
+    - Click **"Proceed to localhost (unsafe)"** or **"Accept the Risk and Continue"**
+    - Your browser will remember this exception for `localhost`
+    
+    Visit `https://localhost:8000/admin` to see the admin panel.
     
     **Default Admin Credentials:**
     - Email: `admin@example.com`
