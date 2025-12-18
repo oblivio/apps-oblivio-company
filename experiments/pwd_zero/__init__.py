@@ -16,7 +16,7 @@ from bson import ObjectId
 from werkzeug.security import check_password_hash
 
 from .actor import ExperimentActor
-from experiment_auth_restrictions import block_demo_users
+from mdb_runtime.auth import block_demo_users
 from rate_limit import limiter, LOGIN_POST_LIMIT, LOGIN_GET_LIMIT, REGISTER_POST_LIMIT
 from utils import safe_objectid
 
@@ -58,8 +58,8 @@ async def get_actor_handle(request: Request) -> "ray.actor.ActorHandle":
 
 async def get_user_from_request(request: Request) -> Dict[str, Any]:
     """Get authenticated user from sub-auth session."""
-    from sub_auth import get_experiment_sub_user
-    from experiment_db import get_experiment_db
+    from mdb_runtime.auth import get_experiment_sub_user
+    from mdb_runtime.database import get_experiment_db
     from core_deps import get_experiment_config
     
     slug_id = getattr(request.state, "slug_id", "pwd_zero")
@@ -92,7 +92,7 @@ async def get_encryption_key_from_session(request: Request, user_id: str) -> Opt
     SECURITY: Encryption keys are stored server-side, not in cookies.
     """
     try:
-        from experiment_db import get_experiment_db
+        from mdb_runtime.database import get_experiment_db
         
         db = await get_experiment_db(request)
         if not db:
@@ -131,7 +131,7 @@ async def store_encryption_key_session(
     SECURITY: Only a session ID is stored in cookie, not the encryption key.
     """
     try:
-        from experiment_db import get_experiment_db
+        from mdb_runtime.database import get_experiment_db
         
         db = await get_experiment_db(request)
         if not db:
@@ -175,7 +175,7 @@ async def store_encryption_key_session(
 async def clear_encryption_key_session(request: Request, user_id: str, response: Optional[RedirectResponse] = None):
     """Clear encryption key session from server-side storage."""
     try:
-        from experiment_db import get_experiment_db
+        from mdb_runtime.database import get_experiment_db
         
         db = await get_experiment_db(request)
         if not db:
@@ -309,7 +309,7 @@ async def login_post(
         # Check if MFA is required
         if result.get("status") == "mfa_required":
             # Create temporary MFA session (stores encryption key temporarily)
-            from experiment_db import get_experiment_db
+            from mdb_runtime.database import get_experiment_db
             db = await get_experiment_db(request)
             
             # Generate temporary session token
@@ -337,8 +337,8 @@ async def login_post(
             return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
         
         # Create sub-auth session
-        from sub_auth import create_experiment_session
-        from experiment_db import get_experiment_db
+        from mdb_runtime.auth import create_experiment_session
+        from mdb_runtime.database import get_experiment_db
         from core_deps import get_experiment_config
         
         slug_id = getattr(request.state, "slug_id", "pwd_zero")
@@ -430,8 +430,8 @@ async def register_post(
         
         # The actor already created the user in the users collection with password hash
         # Now we need to create a sub-auth session for that user
-        from sub_auth import create_experiment_session
-        from experiment_db import get_experiment_db
+        from mdb_runtime.auth import create_experiment_session
+        from mdb_runtime.database import get_experiment_db
         from core_deps import get_experiment_config
         
         slug_id = getattr(request.state, "slug_id", "pwd_zero")
@@ -578,7 +578,7 @@ async def get_session(request: Request, actor: "ray.actor.ActorHandle" = Depends
         # Not authenticated
         try:
             # Check if any users exist
-            from experiment_db import get_experiment_db
+            from mdb_runtime.database import get_experiment_db
             db = await get_experiment_db(request)
             has_user = await db.users.count_documents({}) > 0
             return JSONResponse({"authenticated": False, "has_user": has_user})
@@ -870,7 +870,7 @@ async def verify_mfa(
             raise HTTPException(status_code=400, detail="Invalid user ID format")
         
         # Get user and temporary encryption key from temp session storage
-        from experiment_db import get_experiment_db
+        from mdb_runtime.database import get_experiment_db
         db = await get_experiment_db(request)
         
         # Look up temporary session (created during login when MFA is required)
@@ -901,7 +901,7 @@ async def verify_mfa(
             raise HTTPException(status_code=404, detail="User not found")
         
         # MFA verified - complete login
-        from sub_auth import create_experiment_session
+        from mdb_runtime.auth import create_experiment_session
         from core_deps import get_experiment_config
         
         slug_id = getattr(request.state, "slug_id", "pwd_zero")

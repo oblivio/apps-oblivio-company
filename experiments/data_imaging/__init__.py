@@ -256,7 +256,7 @@ async def find_by_intensity(
         # Method doesn't exist on actor yet (needs restart) - use fallback
         logger.warning(f"Actor method not available (needs restart): {e}, using fallback")
         try:
-            from experiment_db import get_experiment_db
+            from mdb_runtime.database import get_experiment_db
             
             db = await get_experiment_db(request)
             slug_id = getattr(request.state, "slug_id", None)

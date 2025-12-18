@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, Dict
 
 # --- Generic Protocol Import (MUST remain at the top) ---
-# CasbinAdapter and OsoAdapter are imported here as they are part of the common 'authz_provider' file.
-from authz_provider import AuthorizationProvider, CasbinAdapter, OsoAdapter
+# CasbinAdapter and OsoAdapter are imported from mdb_runtime
+from mdb_runtime.auth import AuthorizationProvider, CasbinAdapter, OsoAdapter
 
 # The global CASBIN_AVAILABLE check has been removed.
 

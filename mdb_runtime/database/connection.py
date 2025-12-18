@@ -1,6 +1,5 @@
 """
-Shared MongoDB Connection Pool Manager (mongo_connection_pool.py)
-================================================================================
+Shared MongoDB Connection Pool Manager
 
 Provides a singleton MongoDB connection pool manager for Ray actors to share
 database connections efficiently. This prevents each actor from creating its
@@ -10,8 +9,10 @@ This module implements a thread-safe singleton pattern that ensures all Ray
 actors in the same process share a single MongoDB client instance with a
 reasonable connection pool size.
 
+This module is part of MDB_RUNTIME - MongoDB Multi-Tenant Runtime Engine.
+
 Usage:
-    from mongo_connection_pool import get_shared_mongo_client, get_pool_metrics
+    from mdb_runtime.database import get_shared_mongo_client, get_pool_metrics
     
     client = get_shared_mongo_client(mongo_uri)
     db = client[db_name]

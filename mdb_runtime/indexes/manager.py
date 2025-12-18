@@ -1,9 +1,24 @@
-"""Index management functions for MongoDB Atlas search and regular indexes."""
+"""
+Index Management Orchestration
+
+High-level functions for creating and managing indexes based on manifest definitions.
+
+This module is part of MDB_RUNTIME - MongoDB Multi-Tenant Runtime Engine.
+"""
 import json
 import logging
 from typing import Any, Dict, List
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from config import INDEX_MANAGER_AVAILABLE, AsyncAtlasIndexManager
+
+# Import index manager from database module
+try:
+    from ..database.scoped_wrapper import AsyncAtlasIndexManager
+except ImportError:
+    AsyncAtlasIndexManager = None
+    logging.warning("AsyncAtlasIndexManager not available")
+
+# Check if index manager is available
+INDEX_MANAGER_AVAILABLE = AsyncAtlasIndexManager is not None
 
 logger = logging.getLogger(__name__)
 

@@ -196,7 +196,7 @@ except Exception as e:
     logger.error(f"⚠️ Unexpected error importing Ray: {e}", exc_info=True)
 
 try:
-    from async_mongo_wrapper import ScopedMongoWrapper, AsyncAtlasIndexManager
+    from mdb_runtime.database import ScopedMongoWrapper, AsyncAtlasIndexManager
     HAVE_MONGO_WRAPPER = True
     INDEX_MANAGER_AVAILABLE = True
 except ImportError:

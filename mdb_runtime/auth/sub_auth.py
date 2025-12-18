@@ -1,10 +1,13 @@
 """
 Sub-Authentication Helper Module
+
 Provides utilities for experiment-specific authentication (sub-authentication).
 
 This module allows experiments to manage their own users and sessions
 separate from platform-level authentication, while maintaining integration
 with the platform's auth system.
+
+This module is part of MDB_RUNTIME - MongoDB Multi-Tenant Runtime Engine.
 """
 
 import os
@@ -13,19 +16,15 @@ import uuid
 import hashlib
 import logging
 import bcrypt
-from typing import Optional, Dict, Any, Mapping, List
+from typing import Optional, Dict, Any, Mapping, List, Callable, Awaitable
 from datetime import datetime, timedelta
 from fastapi import Request, HTTPException, status, Cookie
 from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
 
-# Import SECRET_KEY from core_deps for JWT signing
-try:
-    from core_deps import SECRET_KEY
-except ImportError:
-    SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "a_very_bad_dev_secret_key_12345")
-    logger.warning("Could not import SECRET_KEY from core_deps, using environment variable")
+# Import SECRET_KEY from mdb_runtime.auth.dependencies
+from .dependencies import SECRET_KEY
 
 
 async def get_experiment_sub_user(
@@ -33,7 +32,8 @@ async def get_experiment_sub_user(
     slug_id: str,
     db,
     config: Optional[Dict[str, Any]] = None,
-    allow_demo_fallback: bool = False
+    allow_demo_fallback: bool = False,
+    get_experiment_config_func: Optional[Callable[[Request, str, Dict], Awaitable[Dict]]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Get experiment-specific user from session cookie.
@@ -62,8 +62,12 @@ async def get_experiment_sub_user(
     """
     # Get sub_auth config from experiment config
     if config is None:
-        from core_deps import get_experiment_config
-        config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
+        if not get_experiment_config_func:
+            raise ValueError(
+                "config or get_experiment_config_func must be provided. "
+                "Provide either the config dict directly or a callable that returns it."
+            )
+        config = await get_experiment_config_func(request, slug_id, {"sub_auth": 1})
     
     if not config:
         return None
@@ -93,8 +97,8 @@ async def get_experiment_sub_user(
         return None
     
     try:
-        # Use the helper function from core_deps for consistent JWT decoding
-        from core_deps import decode_jwt_token
+        # Use the helper function from jwt module for consistent JWT decoding
+        from .jwt import decode_jwt_token
         payload = decode_jwt_token(session_token, SECRET_KEY)
         
         # Verify it's for this experiment
@@ -264,7 +268,8 @@ async def create_experiment_session(
     slug_id: str,
     user_id: str,
     config: Optional[Dict[str, Any]] = None,
-    response: Optional[Response] = None
+    response: Optional[Response] = None,
+    get_experiment_config_func: Optional[Callable[[Request, str, Dict], Awaitable[Dict]]] = None
 ) -> str:
     """
     Create an experiment-specific session token and set cookie.
@@ -281,8 +286,12 @@ async def create_experiment_session(
     """
     # Get sub_auth config
     if config is None:
-        from core_deps import get_experiment_config
-        config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
+        if not get_experiment_config_func:
+            raise ValueError(
+                "config or get_experiment_config_func must be provided. "
+                "Provide either the config dict directly or a callable that returns it."
+            )
+        config = await get_experiment_config_func(request, slug_id, {"sub_auth": 1})
     
     if not config:
         raise ValueError(f"Experiment config not found for {slug_id}")
@@ -500,7 +509,8 @@ async def get_or_create_anonymous_user(
     request: Request,
     slug_id: str,
     db,
-    config: Optional[Dict[str, Any]] = None
+    config: Optional[Dict[str, Any]] = None,
+    get_experiment_config_func: Optional[Callable[[Request, str, Dict], Awaitable[Dict]]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Get or create an anonymous user for anonymous_session strategy.
@@ -516,8 +526,12 @@ async def get_or_create_anonymous_user(
     """
     # Get sub_auth config
     if config is None:
-        from core_deps import get_experiment_config
-        config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
+        if not get_experiment_config_func:
+            raise ValueError(
+                "config or get_experiment_config_func must be provided. "
+                "Provide either the config dict directly or a callable that returns it."
+            )
+        config = await get_experiment_config_func(request, slug_id, {"sub_auth": 1})
     
     if not config:
         return None
@@ -840,7 +854,8 @@ async def get_or_create_demo_user_for_request(
     request: Request,
     slug_id: str,
     db,
-    config: Optional[Dict[str, Any]] = None
+    config: Optional[Dict[str, Any]] = None,
+    get_experiment_config_func: Optional[Callable[[Request, str, Dict], Awaitable[Dict]]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Get or create a demo user for the current request context.
@@ -855,13 +870,14 @@ async def get_or_create_demo_user_for_request(
         slug_id: Experiment slug
         db: Experiment database wrapper
         config: Optional experiment config
+        get_experiment_config_func: Optional callable to get experiment config
     
     Returns:
         Demo user dict if available, None otherwise
     """
     # Check if platform user is demo user
     try:
-        from core_deps import get_current_user_from_request
+        from .dependencies import get_current_user_from_request
         platform_user = await get_current_user_from_request(request)
         
         if platform_user:
@@ -869,8 +885,12 @@ async def get_or_create_demo_user_for_request(
             if platform_user.get("email") == DEMO_EMAIL_DEFAULT:
                 # Platform demo user accessing experiment - ensure experiment demo exists
                 if config is None:
-                    from core_deps import get_experiment_config
-                    config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
+                    if not get_experiment_config_func:
+                        raise ValueError(
+                            "config or get_experiment_config_func must be provided. "
+                            "Provide either the config dict directly or a callable that returns it."
+                        )
+                    config = await get_experiment_config_func(request, slug_id, {"sub_auth": 1})
                 
                 if config:
                     sub_auth = config.get("sub_auth", {})
@@ -1012,7 +1032,7 @@ async def ensure_demo_users_for_actor(
     demo users on first access via request context.
     
     Example usage in actor.initialize():
-        from sub_auth import ensure_demo_users_for_actor
+        from mdb_runtime.auth import ensure_demo_users_for_actor
         demo_users = await ensure_demo_users_for_actor(
             db=self.db,
             slug_id=self.write_scope,

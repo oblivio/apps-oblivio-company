@@ -148,7 +148,7 @@ from b2_utils import (
 from lifespan import lifespan, get_templates
 
 # Manifest validation
-from manifest_schema import validate_manifest, validate_manifest_with_db, validate_managed_indexes, validate_developer_id
+from mdb_runtime.core import validate_manifest, validate_manifest_with_db, validate_managed_indexes, validate_developer_id
 
 # Database initialization and seeding
 from database import (
@@ -158,7 +158,7 @@ from database import (
 )
 
 # Index management
-from index_management import (
+from mdb_runtime.indexes import (
     normalize_json_def as _normalize_json_def,
     run_index_creation_for_collection as _run_index_creation_for_collection,
 )
@@ -209,14 +209,14 @@ try:
     get_authz_provider,
     require_experiment_access,
   )
-  # ScopedMongoWrapper is imported above from async_mongo_wrapper
+  # ScopedMongoWrapper is imported above from mdb_runtime.database
 except ImportError as e:
   logging.critical(f" CRITICAL ERROR: Failed to import core dependencies: {e}")
   sys.exit(1)
 
 # Pluggable Authorization imports
 try:
-  from authz_provider import AuthorizationProvider, CasbinAdapter
+  from mdb_runtime.auth import AuthorizationProvider, CasbinAdapter
   from authz_factory import create_authz_provider
 except ImportError as e:
   logging.critical(f" CRITICAL ERROR: Failed to import authorization components: {e}")
@@ -224,11 +224,11 @@ except ImportError as e:
 
 # Index Management import
 try:
-  from async_mongo_wrapper import AsyncAtlasIndexManager
+  from mdb_runtime.database import AsyncAtlasIndexManager
   INDEX_MANAGER_AVAILABLE = True
 except ImportError:
   INDEX_MANAGER_AVAILABLE = False
-  logging.warning(" Index Management disabled: 'async_mongo_wrapper.py' not found.")
+  logging.warning(" Index Management disabled: 'mdb_runtime.database' not found.")
 
 
 ## Logging Configuration
@@ -3239,7 +3239,7 @@ async def upload_experiment_zip(
           parsed_manifest = json.load(mf)
         
         # Validate manifest before processing (with developer_id check)
-        from manifest_schema import validate_manifest_with_db, validate_managed_indexes
+        from mdb_runtime.core import validate_manifest_with_db, validate_managed_indexes
         # Check developer_id exists in system if present
         async def check_developer_exists_upload(dev_email: str) -> bool:
           """Check if developer exists and has developer role."""
@@ -4504,7 +4504,7 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
     
     # Validate manifest schema before registration
     try:
-      from manifest_schema import validate_manifest, validate_manifest_with_db
+      from mdb_runtime.core import validate_manifest, validate_manifest_with_db
       # During registration, we validate schema only (no DB check for developer_id)
       # DB validation happens during save/upload when database is available
       is_valid, validation_error, error_paths = validate_manifest(cfg)

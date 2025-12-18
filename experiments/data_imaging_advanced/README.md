@@ -19,20 +19,29 @@ This experiment takes the "Data Imaging" concept further by using a **trained Py
 
 ## Usage
 
+### ⚠️ Important: Model Training
+
+**The PyTorch model does NOT train automatically.** The model must be trained manually before use:
+
+```bash
+python experiments/data_imaging_advanced/train_model.py
+```
+
+This script:
+- Generates synthetic workout data
+- Trains the autoencoder for 50 epochs
+- Saves trained weights to `workout_encoder.pth`
+
+**If the model file doesn't exist**, the actor will use an **untrained model with random weights**, which will produce meaningless embeddings. The UI will display a warning when using an untrained model.
+
 ### 1. Auto-Loading
 On first visit, the gallery automatically generates 10 workouts using the actor's synthetic data generator and runs them through the Autoencoder.
 
 ### 2. Manual Generation
 Click **"Generate New Workout"** to create a single new entry.
 
-### 3. Training
-To regenerate the model weights (`workout_encoder.pth`), run the training script:
-
-```bash
-python experiments/data_imaging_advanced/train_model.py
-```
-
-This ensures the actor uses a model trained on fresh synthetic data patterns.
+### 3. Training Status
+The UI will show a warning banner if the model hasn't been trained yet. Always train the model first for meaningful results!
 
 ## File Structure
 

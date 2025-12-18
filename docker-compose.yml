@@ -83,22 +83,27 @@ services:
       start_period: 5s
 
   # --------------------------------------------------------------------------
-  # MongoDB Database
+  # MongoDB Database (Atlas Local)
   # --------------------------------------------------------------------------
   mongo:
-    image: mongodb/mongodb-atlas-local:latest # Or a specific MongoDB version if needed
+    image: mongodb/mongodb-atlas-local:latest
     container_name: mlab-mongo
     platform: linux/arm64 # Ensure ARM64 platform
     ports:
       - "27017:27017" # Map host port to container port
     volumes:
       - mongo-data:/data/db # Persist data across restarts
+    # Optional: Set database name (defaults to 'test')
+    environment:
+      - MONGODB_INITDB_DATABASE=labs_db
+    # Optional: Disable telemetry if desired
+    # - DO_NOT_TRACK=1
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.hello()", "--quiet"]
+      test: ["CMD", "mongosh", "mongodb://localhost/?directConnection=true", "--eval", "db.hello()", "--quiet"]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 5s
+      retries: 5
+      start_period: 30s # Atlas Local needs more time to initialize
 
 volumes:
   mongo-data:

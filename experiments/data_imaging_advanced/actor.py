@@ -109,36 +109,34 @@ class ExperimentActor:
                     return x
 
             self.Autoencoder = Autoencoder
-            self.model = self._load_or_create_model()
+            self.model, self.model_is_trained = self._load_or_create_model()
             
-            logger.info(f"[{write_scope}-Actor] Initialized with PyTorch Autoencoder (64-dim).")
+            logger.info(f"[{write_scope}-Actor] Initialized with PyTorch Autoencoder (64-dim). Model trained: {self.model_is_trained}")
             
         except ImportError as e:
             logger.critical(f"[{write_scope}-Actor] Failed to load dependencies: {e}")
             self.model = None
 
     def _load_or_create_model(self):
-        """Loads model from disk or creates an untrained one."""
+        """Loads model from disk or creates an untrained one. Returns (model, is_trained)."""
         device = self.torch.device("cpu") # Use CPU for inference in actor
         model = self.Autoencoder(latent_dim=LATENT_DIM).to(device)
+        is_trained = False
         
         if MODEL_PATH.exists():
             try:
                 state_dict = self.torch.load(str(MODEL_PATH), map_location=device)
-                # Check if it's a full model or just encoder state dict
-                # We'll assume full model state dict for simplicity or handle keys
-                model.encoder.load_state_dict(state_dict, strict=False) 
-                # If we saved just the encoder, this might fail strict loading if keys don't match exactly 
-                # but let's assume we saved the encoder's state dict specifically.
-                # Actually, better to load the whole autoencoder state if available, or just use untrained for now if file missing.
+                # train_model.py saves the full model.state_dict(), so load it into the full model
+                model.load_state_dict(state_dict, strict=True)
                 logger.info(f"Loaded trained model from {MODEL_PATH}")
+                is_trained = True
             except Exception as e:
                 logger.warning(f"Failed to load model from {MODEL_PATH}: {e}. Using untrained model.")
         else:
             logger.warning(f"Model file not found at {MODEL_PATH}. Using untrained model (random weights).")
             
         model.eval()
-        return model
+        return model, is_trained
 
     def _normalize_data(self, data, min_val, max_val):
         clipped = np.clip(data, min_val, max_val)
@@ -317,7 +315,7 @@ class ExperimentActor:
             except Exception: continue
             
         return self.templates.get_template("index.html").render(
-            request=None, collection_images_html=grid_html
+            request=None, collection_images_html=grid_html, model_is_trained=self.model_is_trained
         )
 
     async def render_detail_page(self, workout_id: int, request_context):
@@ -386,7 +384,8 @@ class ExperimentActor:
             ai_neighbors_html=neighbors_html,
             ai_classification=doc.get("ai_classification", PLACEHOLDER_CLASSIFICATION),
             ai_summary=summary,
-            vector_dim=len(doc.get("workout_vector", []))
+            vector_dim=len(doc.get("workout_vector", [])),
+            model_is_trained=self.model_is_trained
         )
 
     async def generate_one(self) -> int:

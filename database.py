@@ -7,7 +7,7 @@ import bcrypt
 from typing import Any, Dict, List, Optional
 from fastapi import FastAPI
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from authz_provider import AuthorizationProvider
+from mdb_runtime.auth import AuthorizationProvider
 from config import (
     EXPERIMENTS_DIR,
     ADMIN_EMAIL_DEFAULT,
@@ -17,7 +17,7 @@ from config import (
     DEMO_ENABLED,
 )
 from utils import read_json_async
-from manifest_schema import validate_manifest, validate_managed_indexes
+from mdb_runtime.core import validate_manifest, validate_managed_indexes
 
 logger = logging.getLogger(__name__)
 

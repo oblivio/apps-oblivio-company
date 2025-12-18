@@ -4,7 +4,7 @@ Provides helpers for role assignment with proper validation.
 """
 import logging
 from typing import Dict, Any, Optional
-from authz_provider import AuthorizationProvider
+from mdb_runtime.auth import AuthorizationProvider
 
 logger = logging.getLogger(__name__)
 

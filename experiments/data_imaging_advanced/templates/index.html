@@ -336,6 +336,25 @@
     </button>
   </header>
   
+  {% if not model_is_trained %}
+  <div style="background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.15) 100%); border: 2px solid rgba(255, 193, 7, 0.4); border-radius: 16px; padding: 20px; margin-bottom: 30px; box-shadow: 0 0 20px rgba(255, 193, 7, 0.1);">
+    <div style="display: flex; align-items: flex-start; gap: 16px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #FFC107; flex-shrink: 0; margin-top: 2px;">
+        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <div style="flex: 1;">
+        <h3 style="margin: 0 0 8px 0; color: #FFC107; font-size: 1.2rem; font-weight: 700;">Model Not Trained</h3>
+        <p style="margin: 0 0 12px 0; color: #E4EAF0; line-height: 1.6;">
+          The PyTorch autoencoder is using <strong>random, untrained weights</strong>. Embeddings will be meaningless until you train the model.
+        </p>
+        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: #FFC107; margin-top: 12px;">
+          <strong>To train:</strong> Run <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">python experiments/data_imaging_advanced/train_model.py</code>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="controls-card">
     <div class="controls-info">
       <h3>Synthetic Data Generator</h3>

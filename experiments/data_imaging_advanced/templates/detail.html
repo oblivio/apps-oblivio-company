@@ -330,6 +330,23 @@
     <!-- Right Column: Data & Analysis -->
     <main>
       
+      {% if not model_is_trained %}
+      <div class="card" style="border-left: 4px solid #FFC107; background: linear-gradient(90deg, rgba(255, 193, 7, 0.1) 0%, transparent 100%); margin-bottom: 30px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #FFC107; flex-shrink: 0; margin-top: 2px;">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 8px 0; color: #FFC107; font-size: 1rem; font-weight: 700;">Using Untrained Model</h3>
+            <p style="margin: 0; color: #E4EAF0; font-size: 0.9rem; line-height: 1.5;">
+              This embedding was generated with an untrained model (random weights). For meaningful results, train the model first:
+              <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; margin-left: 4px;">python experiments/data_imaging_advanced/train_model.py</code>
+            </p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <!-- AI Summary Card -->
       <div class="card" style="border-left: 4px solid var(--accent); background: linear-gradient(90deg, rgba(0, 237, 100, 0.05) 0%, transparent 100%);">
         <h3 class="section-title">AI Summary</h3>

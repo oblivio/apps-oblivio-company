@@ -1,11 +1,13 @@
 """
-JSON Schema validation for experiment manifest.json files with versioning support.
+Manifest validation and parsing system.
 
 This module provides:
 - Multi-version schema support for backward compatibility
 - Schema migration functions for upgrading manifests
 - Optimized validation with caching for scale
 - Parallel manifest processing capabilities
+
+This module is part of MDB_RUNTIME - MongoDB Multi-Tenant Runtime Engine.
 
 SCHEMA VERSIONING STRATEGY
 ==========================
@@ -1213,3 +1215,253 @@ def validate_managed_indexes(managed_indexes: Dict[str, List[Dict[str, Any]]]) -
                 return False, error_msg
     
     return True, None
+
+
+# ============================================================================
+# CLASS-BASED API (Enterprise-ready)
+# ============================================================================
+
+class ManifestValidator:
+    """
+    Enterprise-grade manifest validator with versioning and caching.
+    
+    Provides a clean class-based API for manifest validation while
+    maintaining backward compatibility with functional API.
+    """
+    
+    def __init__(self, use_cache: bool = True):
+        """
+        Initialize validator.
+        
+        Args:
+            use_cache: Whether to use validation cache (default: True)
+        """
+        self.use_cache = use_cache
+    
+    @staticmethod
+    def validate(manifest: Dict[str, Any], use_cache: bool = True) -> Tuple[bool, Optional[str], Optional[List[str]]]:
+        """
+        Validate manifest against schema.
+        
+        Args:
+            manifest: Manifest dictionary to validate
+            use_cache: Whether to use validation cache
+            
+        Returns:
+            Tuple of (is_valid, error_message, error_paths)
+        """
+        return validate_manifest(manifest, use_cache=use_cache)
+    
+    @staticmethod
+    async def validate_async(manifest: Dict[str, Any], use_cache: bool = True) -> Tuple[bool, Optional[str], Optional[List[str]]]:
+        """
+        Validate manifest asynchronously.
+        
+        Args:
+            manifest: Manifest dictionary to validate
+            use_cache: Whether to use validation cache
+            
+        Returns:
+            Tuple of (is_valid, error_message, error_paths)
+        """
+        return await _validate_manifest_async(manifest, use_cache=use_cache)
+    
+    @staticmethod
+    async def validate_with_db(
+        manifest: Dict[str, Any],
+        db_validator: Callable[[str], Awaitable[bool]],
+        use_cache: bool = True
+    ) -> Tuple[bool, Optional[str], Optional[List[str]]]:
+        """
+        Validate manifest and check developer_id exists in database.
+        
+        Args:
+            manifest: Manifest dictionary to validate
+            db_validator: Async function that checks if developer_id exists
+            use_cache: Whether to use validation cache
+            
+        Returns:
+            Tuple of (is_valid, error_message, error_paths)
+        """
+        return await validate_manifest_with_db(manifest, db_validator, use_cache=use_cache)
+    
+    @staticmethod
+    def validate_managed_indexes(managed_indexes: Dict[str, List[Dict[str, Any]]]) -> Tuple[bool, Optional[str]]:
+        """
+        Validate managed indexes configuration.
+        
+        Args:
+            managed_indexes: Managed indexes dictionary
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        return validate_managed_indexes(managed_indexes)
+    
+    @staticmethod
+    def validate_index_definition(
+        index_def: Dict[str, Any],
+        collection_name: str,
+        index_name: str
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Validate a single index definition.
+        
+        Args:
+            index_def: Index definition dictionary
+            collection_name: Collection name for context
+            index_name: Index name for context
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        return validate_index_definition(index_def, collection_name, index_name)
+    
+    @staticmethod
+    def get_schema_version(manifest: Dict[str, Any]) -> str:
+        """
+        Get schema version from manifest.
+        
+        Args:
+            manifest: Manifest dictionary
+            
+        Returns:
+            Schema version string (e.g., "1.0", "2.0")
+        """
+        return get_schema_version(manifest)
+    
+    @staticmethod
+    def migrate(manifest: Dict[str, Any], target_version: str = CURRENT_SCHEMA_VERSION) -> Dict[str, Any]:
+        """
+        Migrate manifest to target schema version.
+        
+        Args:
+            manifest: Manifest dictionary to migrate
+            target_version: Target schema version
+            
+        Returns:
+            Migrated manifest dictionary
+        """
+        return migrate_manifest(manifest, target_version)
+    
+    @staticmethod
+    def clear_cache():
+        """Clear validation cache."""
+        clear_validation_cache()
+
+
+class ManifestParser:
+    """
+    Manifest parser for loading and processing manifest files.
+    
+    Provides utilities for loading manifests from files or dictionaries
+    with automatic validation and migration.
+    """
+    
+    def __init__(self, validator: Optional[ManifestValidator] = None):
+        """
+        Initialize parser.
+        
+        Args:
+            validator: Optional ManifestValidator instance (creates default if None)
+        """
+        self.validator = validator or ManifestValidator()
+    
+    @staticmethod
+    async def load_from_file(path: Any, validate: bool = True) -> Dict[str, Any]:
+        """
+        Load and validate manifest from file.
+        
+        Args:
+            path: Path to manifest.json file (Path object or string)
+            validate: Whether to validate after loading (default: True)
+            
+        Returns:
+            Manifest dictionary
+            
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If validation fails
+        """
+        from pathlib import Path
+        import json
+        
+        path_obj = Path(path) if not isinstance(path, Path) else path
+        
+        if not path_obj.exists():
+            raise FileNotFoundError(f"Manifest file not found: {path_obj}")
+        
+        # Read file
+        content = path_obj.read_text(encoding="utf-8")
+        manifest_data = json.loads(content)
+        
+        # Validate if requested
+        if validate:
+            is_valid, error, paths = ManifestValidator.validate(manifest_data)
+            if not is_valid:
+                error_path_str = f" (errors in: {', '.join(paths[:3])})" if paths else ""
+                raise ValueError(f"Manifest validation failed: {error}{error_path_str}")
+        
+        return manifest_data
+    
+    @staticmethod
+    async def load_from_dict(data: Dict[str, Any], validate: bool = True) -> Dict[str, Any]:
+        """
+        Load and validate manifest from dictionary.
+        
+        Args:
+            data: Manifest dictionary
+            validate: Whether to validate (default: True)
+            
+        Returns:
+            Validated manifest dictionary
+            
+        Raises:
+            ValueError: If validation fails
+        """
+        # Validate if requested
+        if validate:
+            is_valid, error, paths = ManifestValidator.validate(data)
+            if not is_valid:
+                error_path_str = f" (errors in: {', '.join(paths[:3])})" if paths else ""
+                raise ValueError(f"Manifest validation failed: {error}{error_path_str}")
+        
+        return data.copy()
+    
+    @staticmethod
+    async def load_from_string(content: str, validate: bool = True) -> Dict[str, Any]:
+        """
+        Load and validate manifest from JSON string.
+        
+        Args:
+            content: JSON string content
+            validate: Whether to validate (default: True)
+            
+        Returns:
+            Manifest dictionary
+            
+        Raises:
+            json.JSONDecodeError: If JSON is invalid
+            ValueError: If validation fails
+        """
+        import json
+        
+        manifest_data = json.loads(content)
+        return await ManifestParser.load_from_dict(manifest_data, validate=validate)
+    
+    @staticmethod
+    async def load_and_migrate(
+        manifest: Dict[str, Any],
+        target_version: str = CURRENT_SCHEMA_VERSION
+    ) -> Dict[str, Any]:
+        """
+        Load manifest and migrate to target version.
+        
+        Args:
+            manifest: Manifest dictionary
+            target_version: Target schema version
+            
+        Returns:
+            Migrated manifest dictionary
+        """
+        return ManifestValidator.migrate(manifest, target_version)

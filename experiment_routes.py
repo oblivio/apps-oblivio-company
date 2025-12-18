@@ -84,13 +84,13 @@ from core_deps import (
     get_current_user_or_redirect,
     get_authz_provider,
 )
-from authz_provider import AuthorizationProvider
+from mdb_runtime.auth import AuthorizationProvider
 from background_tasks import safe_background_task as _safe_background_task
-from index_management import (
+from mdb_runtime.indexes import (
     normalize_json_def as _normalize_json_def,
     run_index_creation_for_collection as _run_index_creation_for_collection,
 )
-from manifest_schema import validate_manifest, validate_managed_indexes
+from mdb_runtime.core import validate_manifest, validate_managed_indexes
 
 logger = logging.getLogger(__name__)
 
@@ -353,7 +353,7 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
                     async def hybrid_auth_dep(request: Request) -> Dict[str, Any]:
                         # Import dependencies at function level to avoid circular imports
                         from core_deps import SECRET_KEY, get_experiment_config, _validate_next_url, get_authz_provider, decode_jwt_token
-                        from experiment_db import get_experiment_db
+                        from mdb_runtime.database import get_experiment_db
                         import jwt as jwt_lib
                         
                         # STEP 0: GOD-LEVEL ACCESS - Check if user is admin
@@ -451,7 +451,7 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
                                                 f"attempting to auto-link experiment profile"
                                             )
                                             try:
-                                                from sub_auth import ensure_demo_users_exist
+                                                from mdb_runtime.auth import ensure_demo_users_exist
                                                 # MONGO_URI and DB_NAME already imported from config at top of file
                                                 
                                                 # Ensure demo user exists and is linked
@@ -509,7 +509,7 @@ async def _register_experiments(app: FastAPI, active_cfgs: List[Dict[str, Any]],
                         # This is for users who logged in directly within the experiment
                         # Also supports demo mode if allow_demo_access is enabled
                         try:
-                            from sub_auth import get_experiment_sub_user
+                            from mdb_runtime.auth import get_experiment_sub_user
                             
                             config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
                             if not config:

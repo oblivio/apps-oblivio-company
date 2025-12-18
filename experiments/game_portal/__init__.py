@@ -506,8 +506,8 @@ async def get_current_user_id(request: Request):
     
     # Try to get user from sub-auth session (optional - for authenticated users)
     try:
-        from sub_auth import get_experiment_sub_user
-        from experiment_db import get_experiment_db
+        from mdb_runtime.auth import get_experiment_sub_user
+        from mdb_runtime.database import get_experiment_db
         from core_deps import get_experiment_config
         
         config = await get_experiment_config(request, slug_id, {"sub_auth": 1})
@@ -562,8 +562,8 @@ async def _get_or_generate_player_id(request: Request) -> str:
     
     # Try to get user from sub-auth session
     try:
-        from sub_auth import get_experiment_sub_user
-        from experiment_db import get_experiment_db
+        from mdb_runtime.auth import get_experiment_sub_user
+        from mdb_runtime.database import get_experiment_db
         from core_deps import get_experiment_config
         
         config = await get_experiment_config(request, slug_id, {"sub_auth": 1})

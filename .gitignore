@@ -194,6 +194,14 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# MDB_RUNTIME package build artifacts
+mdb_runtime_pypi/
+mdb-runtime-*.zip
+
+# Admin scripts output (internal use)
+_admin/*.zip
+_admin/mdb_runtime_pypi/
+
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data

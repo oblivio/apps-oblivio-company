@@ -117,7 +117,7 @@ class ExperimentActor:
         
         # Database initialization (follows pattern from other experiments)
         try:
-            from experiment_db import create_actor_database
+            from mdb_runtime.database import create_actor_database
             # Use self.read_scopes which may have been updated to include write_scope
             self.db = create_actor_database(
                 mongo_uri,
@@ -623,7 +623,7 @@ class ExperimentActor:
         logger.info(f"[{self.write_scope}-Actor] Waiting for vector search index '{self.vector_index_name}' to be ready...")
         await asyncio.sleep(3)
         
-        from async_mongo_wrapper import AsyncAtlasIndexManager
+        from mdb_runtime.database import AsyncAtlasIndexManager
         index_manager = AsyncAtlasIndexManager(self.db.database[self.write_scope + "_workouts"])
         max_wait = 30
         wait_interval = 2

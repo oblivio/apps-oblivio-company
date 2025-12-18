@@ -1,6 +1,5 @@
 """
-Experiment Database Wrapper (experiment_db.py)
-================================================================================
+Experiment Database Wrapper
 
 A MongoDB-style database abstraction layer for experiments.
 Follows MongoDB API conventions for familiarity and ease of use.
@@ -9,10 +8,12 @@ This module provides an easy-to-use API that matches MongoDB's API closely,
 so experiments can use familiar MongoDB methods. All operations automatically
 handle experiment scoping and indexing behind the scenes.
 
+This module is part of MDB_RUNTIME - MongoDB Multi-Tenant Runtime Engine.
+
 Usage:
-    from experiment_db import ExperimentDB
-    from core_deps import get_scoped_db
+    from mdb_runtime.database import ExperimentDB, Collection
     
+    # In FastAPI route
     @bp.get("/")
     async def my_route(db: ExperimentDB = Depends(get_experiment_db)):
         # MongoDB-style operations - familiar API!
@@ -23,13 +24,9 @@ Usage:
 """
 
 import logging
-from typing import Optional, Dict, Any, List, Union, Tuple
+from typing import Optional, Dict, Any, List, Union, Tuple, Callable
 
-try:
-    from async_mongo_wrapper import ScopedMongoWrapper
-except ImportError:
-    ScopedMongoWrapper = None
-    logging.warning("Failed to import ScopedMongoWrapper. ExperimentDB will not function.")
+from .scoped_wrapper import ScopedMongoWrapper
 
 try:
     from motor.motor_asyncio import AsyncIOMotorCursor
@@ -451,8 +448,8 @@ class ExperimentDB:
     handle experiment scoping and indexing.
     
     Example:
-        from experiment_db import ExperimentDB
-        from core_deps import get_scoped_db
+        from mdb_runtime.database import ExperimentDB
+        from mdb_runtime.database import get_experiment_db
         
         @bp.get("/")
         async def my_route(db: ExperimentDB = Depends(get_experiment_db)):
@@ -468,7 +465,7 @@ class ExperimentDB:
         Initialize ExperimentDB with a ScopedMongoWrapper.
         
         Args:
-            scoped_wrapper: A ScopedMongoWrapper instance from core_deps.get_scoped_db
+            scoped_wrapper: A ScopedMongoWrapper instance (typically from application layer)
         """
         if not ScopedMongoWrapper:
             raise RuntimeError("ScopedMongoWrapper is not available. Check imports.")
@@ -552,23 +549,38 @@ class ExperimentDB:
 
 
 # FastAPI dependency helper
-async def get_experiment_db(request) -> ExperimentDB:
+async def get_experiment_db(
+    request,
+    get_scoped_db_func: Callable
+) -> ExperimentDB:
     """
     FastAPI Dependency: Provides an ExperimentDB instance.
     
     This is a convenience wrapper around get_scoped_db that returns
     an ExperimentDB instance instead of ScopedMongoWrapper.
     
+    Args:
+        request: FastAPI Request object
+        get_scoped_db_func: Required callable that takes a request and returns ScopedMongoWrapper.
+    
     Usage:
-        from experiment_db import get_experiment_db
+        from mdb_runtime.database import get_experiment_db
+        from my_app import get_scoped_db  # Your application layer
         
         @bp.get("/")
-        async def my_route(db: ExperimentDB = Depends(get_experiment_db)):
+        async def my_route(
+            request: Request,
+            db: ExperimentDB = Depends(lambda r: get_experiment_db(r, get_scoped_db_func=get_scoped_db))
+        ):
             doc = await db.users.get("user_123")
     """
-    from core_deps import get_scoped_db
+    if not get_scoped_db_func:
+        raise ValueError(
+            "get_experiment_db requires get_scoped_db_func parameter. "
+            "Provide a callable that takes a Request and returns ScopedMongoWrapper."
+        )
     
-    scoped_db = await get_scoped_db(request)
+    scoped_db = await get_scoped_db_func(request)
     return ExperimentDB(scoped_db)
 
 
@@ -612,7 +624,7 @@ def create_actor_database(
         ExperimentDB instance that mimics Motor's API
         
     Example:
-        from experiment_db import create_actor_database
+        from mdb_runtime.database import create_actor_database
         
         class ExperimentActor:
             def __init__(self, mongo_uri: str, db_name: str, write_scope: str, read_scopes: List[str]):
@@ -632,8 +644,8 @@ def create_actor_database(
     
     try:
         # Import dependencies
-        from mongo_connection_pool import get_shared_mongo_client
-        from async_mongo_wrapper import ScopedMongoWrapper
+        from .connection import get_shared_mongo_client
+        from .scoped_wrapper import ScopedMongoWrapper
         
         # Get shared MongoDB client (handles connection pooling automatically)
         client = get_shared_mongo_client(

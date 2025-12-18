@@ -1,9 +1,10 @@
 """
-Asynchronous MongoDB Scoped Wrapper (async_mongo_wrapper.py)
-================================================================================
+Asynchronous MongoDB Scoped Wrapper
 
 Provides an asynchronous, experiment-scoped proxy wrapper around Motor's
 `AsyncIOMotorDatabase` and `AsyncIOMotorCollection` objects.
+
+This module is part of MDB_RUNTIME - MongoDB Multi-Tenant Runtime Engine.
 
 Core Features:
 - `ScopedMongoWrapper`: Proxies a database. When a collection is
@@ -15,7 +16,7 @@ Core Features:
   both standard MongoDB indexes and Atlas Search/Vector indexes. This
   manager is available via `collection_wrapper.index_manager` and
   operates on the *unscoped* collection for administrative purposes.
-- `AutoIndexManager`: ✨ Magical automatic index management! Automatically
+- `AutoIndexManager`: Automatic index management! Automatically
   creates indexes based on query patterns, making it easy to use collections
   without manual index configuration. Enabled by default for all experiments.
 
@@ -58,12 +59,13 @@ except ImportError:
 # --- END FIX ---
 
 # --- TASK MANAGER IMPORT ---
-# Import task manager from main to prevent task accumulation
+# Import task manager from main to prevent task accumulation (optional)
+# This allows the module to work standalone or with the main application
 try:
     from main import _task_manager
     TASK_MANAGER_AVAILABLE = True
 except ImportError:
-    # Fallback if main.py is not available (e.g., during testing)
+    # Fallback if main.py is not available (e.g., during testing or standalone use)
     _task_manager = None
     TASK_MANAGER_AVAILABLE = False
     logger.debug("Task manager not available. Falling back to raw asyncio.create_task().")

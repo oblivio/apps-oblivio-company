@@ -56,7 +56,7 @@ class ExperimentActor:
         
         # Database initialization
         try:
-            from experiment_db import create_actor_database
+            from mdb_runtime.database import create_actor_database
             self.db = create_actor_database(
                 mongo_uri,
                 db_name,
